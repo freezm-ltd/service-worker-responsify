@@ -1,0 +1,38 @@
+{
+    "name": "@freezm-ltd/service-worker-responsify",
+    "version": "0.0.1",
+    "type": "module",
+    "description": "Create response (with one-time URL) from ReadableStream, Promise, Meta-Request, ...etc",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "build": "tsc && esbuild --target=es2020 --bundle src/index.ts --format=esm --outdir=dist && copy dist\\index.js test\\index.js"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/freezm-ltd/service-worker-responsify.git"
+    },
+    "keywords": [
+        "serviceworker",
+        "request",
+        "response",
+        "stream",
+        "promise"
+    ],
+    "author": "",
+    "license": "MIT",
+    "bugs": {
+        "url": "https://github.com/freezm-ltd/service-worker-responsify/issues"
+    },
+    "homepage": "https://github.com/freezm-ltd/service-worker-responsify#readme",
+    "dependencies": {},
+    "devDependencies": {
+		"@types/serviceworker": "^0.0.89",
+		"esbuild": "^0.23.0",
+		"tslib": "^2.6.3",
+		"typescript": "^5.5.4"
+    }
+}
