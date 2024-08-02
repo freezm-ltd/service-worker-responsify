@@ -47,9 +47,9 @@ export type ReservedRequest = {
 }
 
 export type PartRequest = {
-    start: number
-    length: number
-    request: RequestPrecursor
+    index: number
+    length?: number // last one need when suffix request
+    request: RequestPrecursorExtended
 }
 export type MergeRequest = Array<PartRequest>
 
@@ -104,8 +104,8 @@ export class Responsify {
     }
 
     // merge multiple requests to single-ranged request
-    static async merge() {
-
+    static async merge(merge: MergeRequest) {
+        return (await this.instance.messenger.request<MergeRequest, ResponsifyResponse>("merge", merge)).url
     }
 }
 

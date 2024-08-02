@@ -1,7 +1,7 @@
 import { Messenger, MessengerFactory } from "@freezm-ltd/post-together"
-import { precursor2request, request2precursor, RequestPrecursor, RequestPrecursorExtended, ReservedRequest, Responsified, responsify, ResponsifyResponse } from "./client"
+import { MergeRequest, PartRequest, precursor2request, request2precursor, RequestPrecursor, RequestPrecursorExtended, ReservedRequest, Responsified, responsify, ResponsifyResponse } from "./client"
 import { EventTarget2 } from "@freezm-ltd/event-target-2"
-import { sliceByteStream } from "@freezm-ltd/stream-utils"
+import { mergeStream, sliceByteStream } from "@freezm-ltd/stream-utils"
 
 function createId() {
     return crypto.randomUUID()
@@ -63,23 +63,36 @@ export class Responser extends EventTarget2 {
             const uurl = this.getUniqueURL()
             this.storage.set(uurl.id, (request: Request) => {
                 let result = responsified
-                if (responsified.reuse && responsified.body instanceof ReadableStream) {
+                if (request.method === "HEAD") { // HEAD
+                    result.body = undefined
+                }
+                if (responsified.reuse && responsified.body instanceof ReadableStream) { // GET
                     const { body, ...init } = responsified
                     const [stream1, stream2] = body.tee()
                     responsified.body = stream1
                     result = { body: stream2, ...init }
                 }
                 // range request
-                if (request.headers.has("Range") && result.body instanceof ReadableStream) {
-                    let { start, end } = parseRange(request.headers.get("Range") as Range)
-                    if (end < 0 && responsified.length) end = responsified.length - 1;
-                    result.body = result.body.pipeThrough(sliceByteStream(start, end < 0 ? undefined : (end + 1)))
+                if (request.headers.has("Range")) { // HEAD, GET
                     const headers = new Headers(result.headers)
-                    if (end < 0) {
-                        headers.set("Content-Range", `bytes */*`)
-                    } else {
+                    let { start, end } = parseRange(request.headers.get("Range") as Range)
+                    // @ts-ignore
+                    if (end < 0 && result.body && "length" in result.body) end = result.body.length - 1;
+                    if (end < 0 && responsified.length) end = responsified.length - 1;
+                    if (end < 0) headers.set("Content-Range", `bytes */*`)
+                    else {
                         headers.set("Content-Range", `bytes ${start}-${end}/${responsified.length || "*"}`)
                         headers.set("Content-Length", (end - start + 1).toString())
+                    }
+                    if (result.body) { // GET
+                        if (result.body instanceof ReadableStream) {
+                            result.body = result.body.pipeThrough(sliceByteStream(start, end < 0 ? undefined : (end + 1)))
+                        } else {
+                            if ("buffer" in (result.body as ArrayBufferView)) {
+                                result.body = (result.body as ArrayBufferView).buffer
+                            }
+                            result.body = (result.body as any).slice(start, end + 1)
+                        }
                     }
                     result.headers = Object.fromEntries([...headers])
                     result.status = 206
@@ -87,6 +100,94 @@ export class Responser extends EventTarget2 {
                 }
                 return result
             })
+            return uurl
+        })
+        this.messenger.response<MergeRequest, ResponsifyResponse>("merge", (merge) => {
+            merge.sort((a, b) => a.index - b.index)
+            const uurl = this.getUniqueURL()
+            const reuse = merge.every(part => part.request.reuse)
+            this.storage.set(uurl.id, (request: Request) => {
+                const result: Responsified = { reuse }
+                const parts: Array<RequestPrecursor> = []
+                const contentRange = { start: -1, end: -1 }
+                const lastPart = merge[merge.length - 1]
+                const total = lastPart.length ? lastPart.index + lastPart.length : undefined
+
+                if (request.headers.has("Range")) { // range request
+                    const range = request.headers.get("Range") as Range
+                    let { start, end } = parseRange(range, total)
+                    end += 1
+                    if (end < 1) end = Number.MAX_SAFE_INTEGER;
+                    for (let i = 0; i < merge.length; i++) {
+                        const p1 = merge[i].index
+                        const p2 = merge[i + 1]?.index || Number.MAX_SAFE_INTEGER
+
+                        if (p2 <= start || end <= p1) { //  --[==]--<-->-- or --<-->--[==]--
+                            // skip
+                            continue
+                        }
+
+                        const part = structuredClone(merge[i].request)
+                        let range = ""
+
+                        if (start <= p1 && p2 <= end) { // --<--[==]-->--  ;  [==]
+                            // entire range
+                        }
+                        else if (p1 <= start && end <= p2) { // --[==<==>==]--  ;  <==>
+                            contentRange.start = start
+                            if (end === p2 && p2 === Number.MAX_SAFE_INTEGER) {
+                                range = `bytes=${start - p1}-`
+                            } else {
+                                range = `bytes=${start - p1}-${end - p1 - 1}`
+                                contentRange.end = end - 1
+                            }
+                        }
+                        else if (p1 <= start && start < p2) { // --[==<==]-->--  ;  <==]
+                            range = `bytes=${start - p1}-`
+                            contentRange.start = start
+                        }
+                        else if (p1 < end && end <= p2) { // --<--[==>==]--  ;  [==>
+                            contentRange.start = start
+                            if (end === p2 && p2 === Number.MAX_SAFE_INTEGER) {
+                                // entire range
+                            } else {
+                                range = `bytes=0-${end - p1 - 1}`
+                                contentRange.end = end - 1
+                            }
+                        }
+
+                        if (range) {
+                            const headers = new Headers(part.headers)
+                            headers.set("Range", range)
+                            part.headers = Object.fromEntries([...headers])
+                        }
+                        parts.push(part)
+                    }
+                    result.status = 206
+                    result.statusText = "Partial Content"
+                    {
+                        const { start, end } = contentRange
+                        result.headers = {
+                            "Content-Range": `bytes ${start}-${end < 0 ? "" : end}/${total ? total : "*"}`,
+                            "Content-Length": end < 0 ? "" : (end - start + 1).toString()
+                        }
+                    }
+                } else {
+                    parts.push(...merge.map(m => m.request))
+                    result.status = 200
+                    result.statusText = "OK"
+                }
+                result.headers = result.headers || {}
+                result.headers["Accept-Ranges"] = "bytes"
+
+                if (request.method === "GET") {
+                    const generators = parts.map((p) => async () => (await this.createResponse(precursor2request(p))).body!)
+                    result.body = mergeStream(generators)
+                }
+
+                return result
+            })
+
             return uurl
         })
         caches.open("service-worker-responsify-cache").then(cache => {
@@ -136,13 +237,20 @@ export class Responser extends EventTarget2 {
     }
 }
 
-type Range = `bytes=${number}-${number}` | `bytes=${number}-` | `bytes ${number}-${number}` | `bytes ${number}-`
-function parseRange(range: Range, length?: number) {
+type Range = `bytes=${number}-${number}` | `bytes=${number}-` | `bytes ${number}-${number}` | `bytes ${number}-` | `bytes=-${number}`
+function parseRange(range: Range, length: number = 0) {
     let start: number | string;
     let end: number | string;
-    [, start, end] = /bytes[=\s](\d+)-(\d+)?/.exec(range)!;
+    [, start, end] = /bytes[=\s](\d+)-(\d+)?/.exec(range) || [-1, -1, -1];
+    if (start === -1) {
+        const suffix = Number(/bytes[=\s]-(\d+)/.exec(range)![1]);
+        start = length - suffix
+        end = length - 1
+    }
+    if (end === undefined) end = -1;
     start = Number(start)
-    end = Number(end) || length || -1
+    end = Number(end)
+    if (end < 0) end = length - 1;
     return { start, end }
 }
 function getRangeLength(range: Range, length?: number) {

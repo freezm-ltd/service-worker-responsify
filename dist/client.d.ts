@@ -40,9 +40,9 @@ export type ReservedRequest = {
     precursor: RequestPrecursorWithStream;
 };
 export type PartRequest = {
-    start: number;
-    length: number;
-    request: RequestPrecursor;
+    index: number;
+    length?: number;
+    request: RequestPrecursorExtended;
 };
 export type MergeRequest = Array<PartRequest>;
 export declare class Responsify {
@@ -54,7 +54,7 @@ export declare class Responsify {
     static reserve(generator: ResponsifiableGenerator, reuse?: boolean): Promise<string>;
     static store(precursor: RequestPrecursorExtended): Promise<string>;
     static forward(responsified: Responsified): Promise<string>;
-    static merge(): Promise<void>;
+    static merge(merge: MergeRequest): Promise<string>;
 }
 export declare function responsify(responsifiable: Responsifiable, init?: Responsified): Promise<Responsified>;
 export declare function request2precursor(request: Request): RequestPrecursorWithStream;
