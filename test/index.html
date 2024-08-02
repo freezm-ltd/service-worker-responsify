@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Responsify Test</title>
+</head>
+
+<body>
+    <script type="module">
+        import { Responsify } from "./index.js"
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./service-worker.js', { type: "module" })
+        }
+        function text2stream(text) {
+            const tokens = text.split("")
+            const endcoder = new TextEncoder()
+            return new ReadableStream({
+                pull(controller) {
+                    const token = tokens.shift()
+                    if (token) {
+                        controller.enqueue(endcoder.encode(token))
+                    } else {
+                        controller.close()
+                    }
+                }
+            })
+        }
+        window.test = {
+            reserve: async (url = "https://example.com") => {
+                console.log(await fetch(await Responsify.reserve(() => new Request(url), true)))
+            },
+            forward: async (text = "Hello, Responsify!!") => {
+                const [stream1, stream2] = (text2stream(text)).tee();
+                const reusable = await Responsify.forward({ reuse: true, body: stream1 })
+                const notreusable = await Responsify.forward({ reuse: false, body: stream2 })
+                console.log({
+                    reusable: await (await fetch(reusable)).text(),
+                    notreusable: await (await fetch(notreusable)).text(),
+                })
+                console.log({
+                    reusable: await (await fetch(reusable)).text(),
+                    notreusable: await (await fetch(notreusable)).text(),
+                })
+            },
+            store: async (text = "Hello, Responsify!!", start = 3, end = 8, windowSize = 3) => {
+                const precursor1 = { reuse: true, url: await Responsify.forward({ reuse: true, body: text2stream(text), length: text.length }), headers: { "Range": `bytes=${start}-` } }
+                const precursor2 = { reuse: true, url: await Responsify.forward({ reuse: true, body: text2stream(text), length: text.length }), headers: { "Range": `bytes=${start}-${end}` } }
+                const url1 = await Responsify.store(precursor1)
+                const url2 = await Responsify.store(precursor2)
+                for (let i = 0; i <= end - start - windowSize + 1; i++) {
+                    console.log(await (await fetch(url1, { headers: { "Range": `bytes=${i}-${i + windowSize - 1}` } })).text())
+                    console.log(await (await fetch(url2, { headers: { "Range": `bytes=${i}-${i + windowSize - 1}` } })).text())
+                    console.log(await (await fetch(url1, { headers: { "Range": `bytes=${i}-` } })).text())
+                    console.log(await (await fetch(url2, { headers: { "Range": `bytes=${i}-` } })).text())
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>
