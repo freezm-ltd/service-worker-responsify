@@ -1,5 +1,5 @@
 import { Messenger } from "@freezm-ltd/post-together";
-import { Responsified } from "./client";
+import { Responsified, ZipEntryRequest } from "./client";
 import { EventTarget2 } from "@freezm-ltd/event-target-2";
 export type ResponsifiedGenerator = (request: Request) => Responsified | PromiseLike<Responsified>;
 export declare class Responser extends EventTarget2 {
@@ -17,5 +17,10 @@ export declare class Responser extends EventTarget2 {
         id: string;
         url: string;
     };
+    zipSource(entries: Array<ZipEntryRequest>): AsyncGenerator<{
+        name: string;
+        size: number | undefined;
+        input: ReadableStream<Uint8Array>;
+    }, void, unknown>;
     static activate(): void;
 }

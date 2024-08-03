@@ -1,7 +1,8 @@
 import { Messenger, MessengerFactory } from "@freezm-ltd/post-together"
-import { MergeRequest, PartRequest, precursor2request, request2precursor, RequestPrecursor, RequestPrecursorExtended, ReservedRequest, Responsified, responsify, ResponsifyResponse } from "./client"
+import { MergeRequest, PartRequest, precursor2request, request2precursor, RequestPrecursor, RequestPrecursorExtended, ReservedRequest, Responsified, responsify, ResponsifyResponse, ZipEntryRequest, ZipRequest } from "./client"
 import { EventTarget2 } from "@freezm-ltd/event-target-2"
 import { mergeStream, sliceByteStream } from "@freezm-ltd/stream-utils"
+import { makeZip, predictLength } from "client-zip"
 
 function createId() {
     return crypto.randomUUID()
@@ -190,6 +191,29 @@ export class Responser extends EventTarget2 {
 
             return uurl
         })
+        this.messenger.response<ZipRequest, ResponsifyResponse>("zip", (zip) => {
+            const uurl = this.getUniqueURL()
+            const reuse = zip.entries.every(entry => entry.request.reuse)
+            const name = zip.name.toLowerCase().lastIndexOf(".zip") === zip.name.length - 4 ? zip.name : zip.name + ".zip"
+            let size = 0n
+            if (zip.entries.every(entry => !!entry.size)) {
+                try {
+                    size = predictLength(zip.entries.map(entry => {
+                        return { name: entry.name, size: entry.size! }
+                    }))
+                } catch { }
+            }
+            this.storage.set(uurl.id, () => {
+                const newname = encodeURIComponent(name.replace(/\//g, ":")).replace(/['()]/g, escape).replace(/\*/g, "%2A");
+                const headers: Record<string, string> = {
+                    "Content-Type": "application/octet-stream; charset=utf-8",
+                    "Content-Disposition": "attachment; filename*=UTF-8''" + newname
+                };
+                if (size > 0n) headers["Content-Length"] = size.toString();
+                return { reuse, headers, body: makeZip(this.zipSource(zip.entries), { buffersAreUTF8: true }) }
+            })
+            return uurl
+        })
         caches.open("service-worker-responsify-cache").then(cache => {
             this.cache = cache
             this.dispatch("init")
@@ -232,6 +256,27 @@ export class Responser extends EventTarget2 {
         }
     }
 
+    async* zipSource(entries: Array<ZipEntryRequest>) {
+        const controller = new AbortController();
+        const { signal } = controller;
+        const promises = entries.map((entry) => {
+            return async () => {
+                return {
+                    name: entry.name,
+                    size: entry.size,
+                    input: (await this.createResponse(precursor2request(entry.request, { signal }))).body!
+                };
+            };
+        });
+        try {
+            for (const promise of promises) {
+                yield await promise();
+            }
+        } catch (e) {
+            controller.abort(e);
+        }
+    }
+
     static activate() {
         if (!this._instance) this._instance = new Responser();
     }
@@ -266,3 +311,4 @@ function nestRange(parentRange: Range, childRange: Range, parentLength?: number)
     if (child.end > 0) child.end += parent.start;
     return `bytes=${child.start}-${child.end > 0 ? child.end : parent.end > 0 ? parent.end : ""}`
 }
+

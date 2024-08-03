@@ -75,6 +75,26 @@
                 console.log(await (await fetch(url, { headers: { Range: "bytes=-5" } })).arrayBuffer())
                 console.log(await (await fetch(url, { headers: { Range: "bytes=245-" } })).arrayBuffer())
                 console.log(await (await fetch(url, { headers: { Range: "bytes=7-42" } })).arrayBuffer())
+            },
+            zip: async () => {
+                const plan = [
+                    { name: "test.txt", data: "testing!!" },
+                    { name: "folder/test.txt", data: "testing with folder" }
+                ]
+                const entries = []
+                for (let entry of plan) {
+                    const reusable = await Responsify.forward({ reuse: true, body: text2stream(entry.data) })
+                    entries.push({
+                        name: entry.name,
+                        size: entry.data.length,
+                        request: {
+                            url: reusable,
+                            reuse: true
+                        }
+                    })
+                }
+                const url = await Responsify.zip({ name: "test", entries })
+                console.log(await fetch(url))
             }
         }
     </script>

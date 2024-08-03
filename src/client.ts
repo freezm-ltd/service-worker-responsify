@@ -53,6 +53,16 @@ export type PartRequest = {
 }
 export type MergeRequest = Array<PartRequest>
 
+export type ZipEntryRequest = {
+    name: string
+    size?: number
+    request: RequestPrecursorExtended
+}
+export type ZipRequest = {
+    name: string
+    entries: Array<ZipEntryRequest>
+}
+
 export class Responsify {
     protected static _instance: Responsify
 
@@ -107,6 +117,11 @@ export class Responsify {
     static async merge(merge: MergeRequest) {
         return (await this.instance.messenger.request<MergeRequest, ResponsifyResponse>("merge", merge)).url
     }
+
+    // zip multiple requests
+    static async zip(zip: ZipRequest) {
+        return (await this.instance.messenger.request<ZipRequest, ResponsifyResponse>("zip", zip)).url
+    }
 }
 
 export async function responsify(responsifiable: Responsifiable, init?: Responsified) {
@@ -155,7 +170,7 @@ export function request2precursor(request: Request): RequestPrecursorWithStream 
     }
 }
 
-export function precursor2request(precursor: RequestPrecursor | RequestPrecursorWithStream | RequestPrecursorExtended) {
+export function precursor2request(precursor: RequestPrecursor | RequestPrecursorWithStream | RequestPrecursorExtended, additionalInit?: RequestInit) {
     let { url, ...init } = precursor
     if (init.mode === "navigate") {
         init.mode = "same-origin"
@@ -164,5 +179,6 @@ export function precursor2request(precursor: RequestPrecursor | RequestPrecursor
         const { reuse, ..._init } = init
         init = _init
     }
+    if (additionalInit) Object.assign(init, additionalInit);
     return new Request(url, init)
 }

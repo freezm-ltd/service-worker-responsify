@@ -17,6 +17,9 @@ importers:
       '@freezm-ltd/stream-utils':
         specifier: github:freezm-ltd/stream-utils
         version: https://codeload.github.com/freezm-ltd/stream-utils/tar.gz/03153d599fca211c498fdb16813c8cd039c9ae30
+      client-zip:
+        specifier: ^2.4.5
+        version: 2.4.5
     devDependencies:
       '@types/serviceworker':
         specifier: ^0.0.89
@@ -192,6 +195,9 @@ packages:
   '@types/serviceworker@0.0.89':
     resolution: {integrity: sha512-m5C1oHqOeFemS026Mx19vYWbkygiDcKqHsd33dIgLDgfTlowHawZFIGzHmSbx7o5t57dTjaJcMxB8lpWXfkiBQ==}
 
+  client-zip@2.4.5:
+    resolution: {integrity: sha512-4y4d5ZeTH/szIAMQeC8ju67pxtvj+3u20wMGwOFrZk+pegy3aSEA2JkwgC8XVDTXP/Iqn1gyqNQXmkyBp4KLEQ==}
+
   esbuild@0.23.0:
     resolution: {integrity: sha512-1lvV17H2bMYda/WaFb2jLPeHU3zml2k4/yagNMG8Q/YtfMjCwEUZa2eXXMgZTVSL5q1n4H7sQ0X6CdJDqqeCFA==}
     engines: {node: '>=18'}
@@ -290,6 +296,8 @@ snapshots:
       '@freezm-ltd/event-target-2': https://codeload.github.com/freezm-ltd/EventTarget2/tar.gz/11ff2085067d0ab323ed7474ffd8b03f770d6303
 
   '@types/serviceworker@0.0.89': {}
+
+  client-zip@2.4.5: {}
 
   esbuild@0.23.0:
     optionalDependencies:

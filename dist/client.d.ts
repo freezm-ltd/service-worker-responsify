@@ -45,6 +45,15 @@ export type PartRequest = {
     request: RequestPrecursorExtended;
 };
 export type MergeRequest = Array<PartRequest>;
+export type ZipEntryRequest = {
+    name: string;
+    size?: number;
+    request: RequestPrecursorExtended;
+};
+export type ZipRequest = {
+    name: string;
+    entries: Array<ZipEntryRequest>;
+};
 export declare class Responsify {
     protected static _instance: Responsify;
     protected messenger: Messenger;
@@ -55,7 +64,8 @@ export declare class Responsify {
     static store(precursor: RequestPrecursorExtended): Promise<string>;
     static forward(responsified: Responsified): Promise<string>;
     static merge(merge: MergeRequest): Promise<string>;
+    static zip(zip: ZipRequest): Promise<string>;
 }
 export declare function responsify(responsifiable: Responsifiable, init?: Responsified): Promise<Responsified>;
 export declare function request2precursor(request: Request): RequestPrecursorWithStream;
-export declare function precursor2request(precursor: RequestPrecursor | RequestPrecursorWithStream | RequestPrecursorExtended): Request;
+export declare function precursor2request(precursor: RequestPrecursor | RequestPrecursorWithStream | RequestPrecursorExtended, additionalInit?: RequestInit): Request;
