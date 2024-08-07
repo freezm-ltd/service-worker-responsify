@@ -13,7 +13,7 @@ importers:
         version: https://codeload.github.com/freezm-ltd/EventTarget2/tar.gz/11ff2085067d0ab323ed7474ffd8b03f770d6303
       '@freezm-ltd/post-together':
         specifier: github:freezm-ltd/post-together
-        version: https://codeload.github.com/freezm-ltd/post-together/tar.gz/d62e1f751e2109b3326455972d46e9fff4420f00
+        version: https://codeload.github.com/freezm-ltd/post-together/tar.gz/d1be15828d37dc0ac3a26e5416373ade76fb622a
       '@freezm-ltd/stream-utils':
         specifier: github:freezm-ltd/stream-utils
         version: https://codeload.github.com/freezm-ltd/stream-utils/tar.gz/c58a36bb4958390cd10fc066cdebf16f485da5c5
@@ -187,8 +187,8 @@ packages:
     resolution: {tarball: https://codeload.github.com/freezm-ltd/EventTarget2/tar.gz/11ff2085067d0ab323ed7474ffd8b03f770d6303}
     version: 0.0.4
 
-  '@freezm-ltd/post-together@https://codeload.github.com/freezm-ltd/post-together/tar.gz/d62e1f751e2109b3326455972d46e9fff4420f00':
-    resolution: {tarball: https://codeload.github.com/freezm-ltd/post-together/tar.gz/d62e1f751e2109b3326455972d46e9fff4420f00}
+  '@freezm-ltd/post-together@https://codeload.github.com/freezm-ltd/post-together/tar.gz/d1be15828d37dc0ac3a26e5416373ade76fb622a':
+    resolution: {tarball: https://codeload.github.com/freezm-ltd/post-together/tar.gz/d1be15828d37dc0ac3a26e5416373ade76fb622a}
     version: 0.0.1
 
   '@freezm-ltd/stream-utils@https://codeload.github.com/freezm-ltd/stream-utils/tar.gz/c58a36bb4958390cd10fc066cdebf16f485da5c5':
@@ -294,7 +294,7 @@ snapshots:
 
   '@freezm-ltd/event-target-2@https://codeload.github.com/freezm-ltd/EventTarget2/tar.gz/11ff2085067d0ab323ed7474ffd8b03f770d6303': {}
 
-  '@freezm-ltd/post-together@https://codeload.github.com/freezm-ltd/post-together/tar.gz/d62e1f751e2109b3326455972d46e9fff4420f00':
+  '@freezm-ltd/post-together@https://codeload.github.com/freezm-ltd/post-together/tar.gz/d1be15828d37dc0ac3a26e5416373ade76fb622a':
     dependencies:
       '@freezm-ltd/event-target-2': https://codeload.github.com/freezm-ltd/EventTarget2/tar.gz/11ff2085067d0ab323ed7474ffd8b03f770d6303
 

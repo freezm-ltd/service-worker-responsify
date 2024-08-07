@@ -1,4 +1,4 @@
-// node_modules/.pnpm/@freezm-ltd+post-together@https+++codeload.github.com+freezm-ltd+post-together+tar.gz+d62e1f7_acs25tbwvxtp7shcxeklhem3ui/node_modules/@freezm-ltd/post-together/dist/index.js
+// node_modules/.pnpm/@freezm-ltd+post-together@https+++codeload.github.com+freezm-ltd+post-together+tar.gz+d1be158_woiexn7dcpu22ggapp2ogzvum4/node_modules/@freezm-ltd/post-together/dist/index.js
 var EventTarget2 = class extends EventTarget {
   constructor() {
     super(...arguments);
@@ -494,7 +494,6 @@ var MessengerFactory = class {
     }
   }
 };
-MessageHub.init();
 
 // node_modules/.pnpm/@freezm-ltd+event-target-2@https+++codeload.github.com+freezm-ltd+EventTarget2+tar.gz+11ff208_3njyjyppej5icdv7ro2urw6f3a/node_modules/@freezm-ltd/event-target-2/dist/index.js
 var EventTarget22 = class extends EventTarget {
