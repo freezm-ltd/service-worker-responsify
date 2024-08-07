@@ -76,28 +76,86 @@
                 console.log(await (await fetch(url, { headers: { Range: "bytes=245-" } })).arrayBuffer())
                 console.log(await (await fetch(url, { headers: { Range: "bytes=7-42" } })).arrayBuffer())
             },
-            zip: async () => {
-                const plan = [
-                    { name: "test.txt", data: "testing!!" },
-                    { name: "folder/test.txt", data: "testing with folder" }
-                ]
-                const entries = []
-                for (let entry of plan) {
-                    const reusable = await Responsify.forward({ reuse: true, body: text2stream(entry.data) })
-                    entries.push({
-                        name: entry.name,
-                        size: entry.data.length,
-                        request: {
-                            url: reusable,
-                            reuse: true
-                        }
-                    })
+            zip: async (url) => {
+                if (!url) {
+                    const plan = [
+                        { name: "test.txt", data: "testing!!" },
+                        { name: "folder/test.txt", data: "testing with folder" }
+                    ]
+                    const entries = []
+                    for (let entry of plan) {
+                        const reusable = await Responsify.forward({ reuse: true, body: text2stream(entry.data) })
+                        entries.push({
+                            name: entry.name,
+                            size: entry.data.length,
+                            request: {
+                                url: reusable,
+                                reuse: true
+                            }
+                        })
+                    }
+                    const zip = await Responsify.zip({ name: "test", entries })
+                    const response = await fetch(zip)
+                    url = await Responsify.forward({ body: response.body, reuse: true, length: 280 })
                 }
-                const url = await Responsify.zip({ name: "test", entries })
-                console.log(await fetch(url))
+                const request = { url, reuse: true }
+                const result = await Responsify.unzip({ request, id: url })
+                console.log(result)
+                //console.log(await fetch(result.url + "&path=" + Object.keys(result.entries)[0]))
+                for (let name of Object.keys(result.entries)) {
+                    const img = document.createElement("img")
+                    img.src = result.url + "&path=" + name
+                    img.setAttribute("width", "25%")
+                    document.getElementById("show").appendChild(img)
+                }
             }
         }
+
+        function testUnzip() {
+            document.getElementById("unzip-file").onchange = async (e) => {
+                console.log(e)
+                const file = e.target.files[0]
+                const ourl = URL.createObjectURL(file)
+                viewUnzip(ourl, document.getElementById("list"))
+            }
+        }
+
+        async function viewUnzip(url, parent) {
+            const result = await Responsify.unzip({ request: { url } })
+            console.log(result)
+            for (let name of Object.keys(result.entries)) {
+                const childUrl = result.url + "&path=" + name
+                let childElement;
+                if (name.endsWith(".zip")) {
+                    const div = document.createElement("div")
+                    div.style = "display: flex; flex-direction: column; margin-left: 1rem; border: 1px solid;"
+                    div.onclick = (e) => {
+                        if (e.target === div) {
+                            viewUnzip(childUrl, div)
+                        }
+                    }
+                    childElement = div
+                } else {
+                    const a = document.createElement("a")
+                    a.href = childUrl
+                    a.target = "_blank"
+                    childElement = a
+                }
+                childElement.innerText = name
+                parent.appendChild(childElement)
+            }
+        }
+
+        testUnzip()
     </script>
+    <div id="show">
+
+    </div>
+    <div>
+        <div>Unzip Test</div>
+        <input id="unzip-file" type="file">
+        <div id="list" style="display: flex; flex-direction: column;"></div>
+    </div>
 </body>
 
 </html>

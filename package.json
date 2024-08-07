@@ -32,6 +32,7 @@
         "@freezm-ltd/event-target-2": "github:freezm-ltd/EventTarget2",
         "@freezm-ltd/post-together": "github:freezm-ltd/post-together",
         "@freezm-ltd/stream-utils": "github:freezm-ltd/stream-utils",
+        "@zip.js/zip.js": "^2.7.48",
         "client-zip": "^2.4.5"
     },
     "devDependencies": {

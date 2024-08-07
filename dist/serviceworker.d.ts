@@ -1,17 +1,20 @@
 import { Messenger } from "@freezm-ltd/post-together";
-import { Responsified, ZipEntryRequest } from "./client";
+import { RequestPrecursor, RequestPrecursorExtended, RequestPrecursorWithStream, Responsified, ZipEntryRequest } from "./client";
 import { EventTarget2 } from "@freezm-ltd/event-target-2";
 export type ResponsifiedGenerator = (request: Request) => Responsified | PromiseLike<Responsified>;
+export declare const UNZIP_CACHE_CHUNK_SIZE: number;
+export declare const UNZIP_CACHE_NAME = "service-worker-responsify-unzip-cache";
+export declare const UNZIP_CACHE_RETAIN_INTERVAL: number;
 export declare class Responser extends EventTarget2 {
     protected path: string;
     protected messenger: Messenger;
     protected address: WeakMap<WindowClient, Messenger>;
     protected storage: Map<string, ResponsifiedGenerator>;
-    protected cache: Cache | undefined;
     protected static _instance: Responser;
     protected constructor();
     handleRequest(request: Request): Promise<Response> | undefined;
     createResponse(request: Request): Promise<Response>;
+    createResponseFromPrecursor(precursor: RequestPrecursor | RequestPrecursorWithStream | RequestPrecursorExtended, start?: number, length?: number): Promise<Response>;
     parseId(url: string | URL): string | null | undefined;
     getUniqueURL(): {
         id: string;

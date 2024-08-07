@@ -1,4 +1,5 @@
 import { Messenger } from "@freezm-ltd/post-together";
+import { EntryMetaData } from "@zip.js/zip.js";
 export type Responsifiable = ReadableStream<Uint8Array> | Request | Response | URL;
 export type ResponsifiableGenerator = (request: Request) => PromiseLike<Responsifiable>;
 export type ResponsifyOrigin = "window" | "serviceworker";
@@ -54,6 +55,16 @@ export type ZipRequest = {
     name: string;
     entries: Array<ZipEntryRequest>;
 };
+export type UnzipRequest = {
+    request: RequestPrecursorExtended;
+    password?: string;
+    id?: string;
+};
+export type UnzipResponse = ResponsifyResponse & {
+    passwordNeed: boolean;
+    entries: Record<string, EntryMetaData>;
+    unzipId: string;
+};
 export declare class Responsify {
     protected static _instance: Responsify;
     protected messenger: Messenger;
@@ -65,6 +76,11 @@ export declare class Responsify {
     static forward(responsified: Responsified): Promise<string>;
     static merge(merge: MergeRequest): Promise<string>;
     static zip(zip: ZipRequest): Promise<string>;
+    readonly unzipRetain: Set<string>;
+    static unzip(unzip: UnzipRequest): Promise<{
+        url: string;
+        entries: Record<string, EntryMetaData>;
+    }>;
 }
 export declare function responsify(responsifiable: Responsifiable, init?: Responsified): Promise<Responsified>;
 export declare function request2precursor(request: Request): RequestPrecursorWithStream;

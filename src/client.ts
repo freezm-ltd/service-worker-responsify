@@ -1,4 +1,6 @@
 import { Messenger, MessengerFactory } from "@freezm-ltd/post-together"
+import { EntryMetaData } from "@zip.js/zip.js"
+import { UNZIP_CACHE_RETAIN_INTERVAL } from "./serviceworker"
 
 export type Responsifiable = ReadableStream<Uint8Array> | Request | Response | URL
 export type ResponsifiableGenerator = (request: Request) => PromiseLike<Responsifiable>
@@ -63,6 +65,17 @@ export type ZipRequest = {
     entries: Array<ZipEntryRequest>
 }
 
+export type UnzipRequest = {
+    request: RequestPrecursorExtended
+    password?: string
+    id?: string // unique id, to allow parallel access
+}
+export type UnzipResponse = ResponsifyResponse & {
+    passwordNeed: boolean
+    entries: Record<string, EntryMetaData>
+    unzipId: string // unique id, to allow parallel access
+}
+
 export class Responsify {
     protected static _instance: Responsify
 
@@ -83,6 +96,9 @@ export class Responsify {
                 return { reuse: false, status: 404 }
             }
         })
+        setInterval(() => { // retain unzip cache
+            window.navigator.serviceWorker.controller?.postMessage({ unzipRetain: Array.from(this.unzipRetain) })
+        }, UNZIP_CACHE_RETAIN_INTERVAL)
     }
 
     protected static get instance() {
@@ -121,6 +137,17 @@ export class Responsify {
     // zip multiple requests
     static async zip(zip: ZipRequest) {
         return (await this.instance.messenger.request<ZipRequest, ResponsifyResponse>("zip", zip)).url
+    }
+
+    // unzip
+    readonly unzipRetain: Set<string> = new Set()
+    static async unzip(unzip: UnzipRequest) {
+        const result = await this.instance.messenger.request<UnzipRequest, UnzipResponse>("unzip", unzip)
+        this.instance.unzipRetain.add(result.unzipId)
+        return {
+            url: result.url,
+            entries: result.entries,
+        }
     }
 }
 

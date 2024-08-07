@@ -13,10 +13,13 @@ importers:
         version: https://codeload.github.com/freezm-ltd/EventTarget2/tar.gz/11ff2085067d0ab323ed7474ffd8b03f770d6303
       '@freezm-ltd/post-together':
         specifier: github:freezm-ltd/post-together
-        version: https://codeload.github.com/freezm-ltd/post-together/tar.gz/e9777a10e60a37045f56bcfc4beef355bb8204ee
+        version: https://codeload.github.com/freezm-ltd/post-together/tar.gz/d62e1f751e2109b3326455972d46e9fff4420f00
       '@freezm-ltd/stream-utils':
         specifier: github:freezm-ltd/stream-utils
-        version: https://codeload.github.com/freezm-ltd/stream-utils/tar.gz/03153d599fca211c498fdb16813c8cd039c9ae30
+        version: https://codeload.github.com/freezm-ltd/stream-utils/tar.gz/c58a36bb4958390cd10fc066cdebf16f485da5c5
+      '@zip.js/zip.js':
+        specifier: ^2.7.48
+        version: 2.7.48
       client-zip:
         specifier: ^2.4.5
         version: 2.4.5
@@ -184,16 +187,20 @@ packages:
     resolution: {tarball: https://codeload.github.com/freezm-ltd/EventTarget2/tar.gz/11ff2085067d0ab323ed7474ffd8b03f770d6303}
     version: 0.0.4
 
-  '@freezm-ltd/post-together@https://codeload.github.com/freezm-ltd/post-together/tar.gz/e9777a10e60a37045f56bcfc4beef355bb8204ee':
-    resolution: {tarball: https://codeload.github.com/freezm-ltd/post-together/tar.gz/e9777a10e60a37045f56bcfc4beef355bb8204ee}
+  '@freezm-ltd/post-together@https://codeload.github.com/freezm-ltd/post-together/tar.gz/d62e1f751e2109b3326455972d46e9fff4420f00':
+    resolution: {tarball: https://codeload.github.com/freezm-ltd/post-together/tar.gz/d62e1f751e2109b3326455972d46e9fff4420f00}
     version: 0.0.1
 
-  '@freezm-ltd/stream-utils@https://codeload.github.com/freezm-ltd/stream-utils/tar.gz/03153d599fca211c498fdb16813c8cd039c9ae30':
-    resolution: {tarball: https://codeload.github.com/freezm-ltd/stream-utils/tar.gz/03153d599fca211c498fdb16813c8cd039c9ae30}
+  '@freezm-ltd/stream-utils@https://codeload.github.com/freezm-ltd/stream-utils/tar.gz/c58a36bb4958390cd10fc066cdebf16f485da5c5':
+    resolution: {tarball: https://codeload.github.com/freezm-ltd/stream-utils/tar.gz/c58a36bb4958390cd10fc066cdebf16f485da5c5}
     version: 0.0.1
 
   '@types/serviceworker@0.0.89':
     resolution: {integrity: sha512-m5C1oHqOeFemS026Mx19vYWbkygiDcKqHsd33dIgLDgfTlowHawZFIGzHmSbx7o5t57dTjaJcMxB8lpWXfkiBQ==}
+
+  '@zip.js/zip.js@2.7.48':
+    resolution: {integrity: sha512-J7cliimZ2snAbr0IhLx2U8BwfA1pKucahKzTpFtYq4hEgKxwvFJcIjCIVNPwQpfVab7iVP+AKmoH1gidBlyhiQ==}
+    engines: {bun: '>=0.7.0', deno: '>=1.0.0', node: '>=16.5.0'}
 
   client-zip@2.4.5:
     resolution: {integrity: sha512-4y4d5ZeTH/szIAMQeC8ju67pxtvj+3u20wMGwOFrZk+pegy3aSEA2JkwgC8XVDTXP/Iqn1gyqNQXmkyBp4KLEQ==}
@@ -287,15 +294,17 @@ snapshots:
 
   '@freezm-ltd/event-target-2@https://codeload.github.com/freezm-ltd/EventTarget2/tar.gz/11ff2085067d0ab323ed7474ffd8b03f770d6303': {}
 
-  '@freezm-ltd/post-together@https://codeload.github.com/freezm-ltd/post-together/tar.gz/e9777a10e60a37045f56bcfc4beef355bb8204ee':
+  '@freezm-ltd/post-together@https://codeload.github.com/freezm-ltd/post-together/tar.gz/d62e1f751e2109b3326455972d46e9fff4420f00':
     dependencies:
       '@freezm-ltd/event-target-2': https://codeload.github.com/freezm-ltd/EventTarget2/tar.gz/11ff2085067d0ab323ed7474ffd8b03f770d6303
 
-  '@freezm-ltd/stream-utils@https://codeload.github.com/freezm-ltd/stream-utils/tar.gz/03153d599fca211c498fdb16813c8cd039c9ae30':
+  '@freezm-ltd/stream-utils@https://codeload.github.com/freezm-ltd/stream-utils/tar.gz/c58a36bb4958390cd10fc066cdebf16f485da5c5':
     dependencies:
       '@freezm-ltd/event-target-2': https://codeload.github.com/freezm-ltd/EventTarget2/tar.gz/11ff2085067d0ab323ed7474ffd8b03f770d6303
 
   '@types/serviceworker@0.0.89': {}
+
+  '@zip.js/zip.js@2.7.48': {}
 
   client-zip@2.4.5: {}
 
