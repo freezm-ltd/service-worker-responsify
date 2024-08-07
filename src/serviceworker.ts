@@ -436,6 +436,14 @@ export class Responser extends EventTarget2 {
             }
         }, 2 * UNZIP_CACHE_RETAIN_INTERVAL)
 
+        // revoke
+        this.messenger.response<string, boolean>("revoke", (url) => {
+            const id = this.parseId(url)
+            let result = false
+            if (id) result = this.storage.delete(id);
+            return result
+        })
+
         // handleRequest
         self.addEventListener("fetch", async (e: FetchEvent) => {
             const response = this.handleRequest(e.request)
@@ -473,7 +481,7 @@ export class Responser extends EventTarget2 {
 
     parseId(url: string | URL) {
         url = new URL(url)
-        if (url.pathname !== this.path) return;
+        if (url.pathname !== this.path) return null;
         return url.searchParams.get("id")
     }
 

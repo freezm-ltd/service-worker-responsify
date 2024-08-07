@@ -81,6 +81,7 @@ export declare class Responsify {
         url: string;
         entries: Record<string, EntryMetaData>;
     }>;
+    static revoke(url: string): Promise<boolean>;
 }
 export declare function responsify(responsifiable: Responsifiable, init?: Responsified): Promise<Responsified>;
 export declare function request2precursor(request: Request): RequestPrecursorWithStream;

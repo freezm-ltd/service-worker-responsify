@@ -12823,6 +12823,12 @@ var Responser = class _Responser extends EventTarget22 {
         }
       }
     }, 2 * UNZIP_CACHE_RETAIN_INTERVAL);
+    this.messenger.response("revoke", (url) => {
+      const id = this.parseId(url);
+      let result = false;
+      if (id) result = this.storage.delete(id);
+      return result;
+    });
     self.addEventListener("fetch", async (e3) => {
       const response = this.handleRequest(e3.request);
       if (response) e3.respondWith(response);
@@ -12855,7 +12861,7 @@ var Responser = class _Responser extends EventTarget22 {
   }
   parseId(url) {
     url = new URL(url);
-    if (url.pathname !== this.path) return;
+    if (url.pathname !== this.path) return null;
     return url.searchParams.get("id");
   }
   getUniqueURL() {
@@ -12988,6 +12994,10 @@ var Responsify = class _Responsify {
       url: result.url,
       entries: result.entries
     };
+  }
+  // revoke
+  static async revoke(url) {
+    return await this.instance.messenger.request("revoke", url);
   }
 };
 async function responsify(responsifiable, init) {

@@ -155,6 +155,11 @@ export class Responsify {
             entries: result.entries,
         }
     }
+
+    // revoke
+    static async revoke(url: string) {
+        return await this.instance.messenger.request<string, boolean>("revoke", url)
+    }
 }
 
 export async function responsify(responsifiable: Responsifiable, init?: Responsified) {
