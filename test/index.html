@@ -128,7 +128,7 @@
                 let childElement;
                 if (name.endsWith(".zip")) {
                     const div = document.createElement("div")
-                    div.style = "display: flex; flex-direction: column; margin-left: 1rem; border: 1px solid;"
+                    div.style = "display: flex; flex-direction: column; border: 1px solid;"
                     div.onclick = (e) => {
                         if (e.target === div) {
                             viewUnzip(childUrl, div)
