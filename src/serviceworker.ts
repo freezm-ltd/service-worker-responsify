@@ -267,8 +267,7 @@ export class Responser extends EventTarget2 {
             const uurl = this.getUniqueURL()
             const precursor = unzip.request
             const unzipId = unzip.id || uurl.id
-            let password = unzip.password
-            let passwordNeed = false
+            const password = unzip.password
             let passwordChecked = false
             const entryMap: Map<string, ZipEntry> = new Map()
             const entryDataOffset: Map<string, number> = new Map()
@@ -282,10 +281,8 @@ export class Responser extends EventTarget2 {
                 if (!entry.data || entry.data.directory) continue;
                 if (!passwordChecked && entry.isPasswordProtected()) {
                     passwordChecked = true
-                    if (password) {
-                        passwordNeed = !await entry.checkPassword(password)
-                    } else {
-                        passwordNeed = true
+                    if (!password || !await entry.checkPassword(password)) {
+                        return { passwordNeed: true, id: "", url: "", unzipId: "", entries: {} }
                     }
                 }
 
@@ -412,7 +409,7 @@ export class Responser extends EventTarget2 {
                 id: uurl.id,
                 unzipId,
                 url: uurl.url,
-                passwordNeed,
+                passwordNeed: false,
                 entries: entryMetaData
             }
         })

@@ -12663,8 +12663,7 @@ var Responser = class _Responser extends EventTarget22 {
       const uurl = this.getUniqueURL();
       const precursor = unzip.request;
       const unzipId = unzip.id || uurl.id;
-      let password = unzip.password;
-      let passwordNeed = false;
+      const password = unzip.password;
       let passwordChecked = false;
       const entryMap = /* @__PURE__ */ new Map();
       const entryDataOffset = /* @__PURE__ */ new Map();
@@ -12677,10 +12676,8 @@ var Responser = class _Responser extends EventTarget22 {
         if (!entry.data || entry.data.directory) continue;
         if (!passwordChecked && entry.isPasswordProtected()) {
           passwordChecked = true;
-          if (password) {
-            passwordNeed = !await entry.checkPassword(password);
-          } else {
-            passwordNeed = true;
+          if (!password || !await entry.checkPassword(password)) {
+            return { passwordNeed: true, id: "", url: "", unzipId: "", entries: {} };
           }
         }
         const name = entry.data.filename;
@@ -12800,7 +12797,7 @@ var Responser = class _Responser extends EventTarget22 {
         id: uurl.id,
         unzipId,
         url: uurl.url,
-        passwordNeed,
+        passwordNeed: false,
         entries: entryMetaData
       };
     });
@@ -12978,8 +12975,14 @@ var Responsify = class _Responsify {
   static async zip(zip) {
     return (await this.instance.messenger.request("zip", zip)).url;
   }
-  static async unzip(unzip) {
-    const result = await this.instance.messenger.request("unzip", unzip);
+  static async unzip(unzip, promptPassword = () => prompt("This archive is encrypted. Please input the password.") || "") {
+    let result = void 0;
+    while (!result || result.passwordNeed) {
+      result = await this.instance.messenger.request("unzip", unzip);
+      if (result.passwordNeed) {
+        unzip.password = await promptPassword();
+      }
+    }
     this.instance.unzipRetain.add(result.unzipId);
     return {
       url: result.url,

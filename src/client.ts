@@ -141,8 +141,14 @@ export class Responsify {
 
     // unzip
     readonly unzipRetain: Set<string> = new Set()
-    static async unzip(unzip: UnzipRequest) {
-        const result = await this.instance.messenger.request<UnzipRequest, UnzipResponse>("unzip", unzip)
+    static async unzip(unzip: UnzipRequest, promptPassword: () => string | PromiseLike<string> = () => (prompt("This archive is encrypted. Please input the password.") || "")) {
+        let result: UnzipResponse | undefined = undefined
+        while (!result || result.passwordNeed) {
+            result = await this.instance.messenger.request<UnzipRequest, UnzipResponse>("unzip", unzip)
+            if (result.passwordNeed) {
+                unzip.password = await promptPassword()
+            }
+        }
         this.instance.unzipRetain.add(result.unzipId)
         return {
             url: result.url,
