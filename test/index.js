@@ -12489,6 +12489,7 @@ var Responser = class _Responser extends EventTarget22 {
           const range = response.headers.get("Content-Range");
           const { start, end } = parseRange(range);
           const headers = new Headers(response.headers);
+          headers.set("Accept-Ranges", "bytes");
           headers.set("Content-Range", `bytes ${start - offset}-${end - offset}/${total > 0 ? total : Number(range.split("/").pop()) - offset}`);
           response = new Response(response.body, { headers, status: response.status, statusText: response.statusText });
         }
@@ -12515,8 +12516,8 @@ var Responser = class _Responser extends EventTarget22 {
           }
         }
         const headers = new Headers(result.headers);
+        let length = 0;
         if (body) {
-          let length = 0;
           if (body instanceof ReadableStream && responsified.length) {
             length = responsified.length;
           } else if ("buffer" in body) {
@@ -12527,16 +12528,16 @@ var Responser = class _Responser extends EventTarget22 {
             length = body.length;
           }
           if (length) {
+            headers.set("Accept-Ranges", "bytes");
             headers.set("Content-Length", length.toString());
           }
         }
         if (request.headers.has("Range")) {
           let { start, end } = parseRange(request.headers.get("Range"));
-          if (end < 0 && result.body && "length" in result.body) end = result.body.length - 1;
-          if (end < 0 && responsified.length) end = responsified.length - 1;
+          if (end < 0 && length) end = length - 1;
           if (end < 0) headers.set("Content-Range", `bytes */*`);
           else {
-            headers.set("Content-Range", `bytes ${start}-${end}/${responsified.length || "*"}`);
+            headers.set("Content-Range", `bytes ${start}-${end}/${length || "*"}`);
           }
           if (result.body) {
             if (result.body instanceof ReadableStream) {
