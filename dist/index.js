@@ -12981,12 +12981,14 @@ var Responsify = class _Responsify {
   static async zip(zip) {
     return (await this.instance.messenger.request("zip", zip)).url;
   }
-  static async unzip(unzip, promptPassword = () => prompt("This archive is encrypted. Please input the password.") || "") {
+  static async unzip(unzip, promptPassword = unzipPasswordPrompt) {
     let result = void 0;
+    let isFirst = true;
     while (!result || result.passwordNeed) {
       result = await this.instance.messenger.request("unzip", unzip);
       if (result.passwordNeed) {
-        unzip.password = await promptPassword();
+        unzip.password = await promptPassword(isFirst);
+        isFirst = false;
       }
     }
     this.instance.unzipRetain.add(result.unzipId);
@@ -13000,6 +13002,18 @@ var Responsify = class _Responsify {
     return await this.instance.messenger.request("revoke", url);
   }
 };
+function unzipPasswordPrompt(isFirst) {
+  let password;
+  if (isFirst) {
+    password = prompt("This file is encrypted. Please enter the password.");
+  } else {
+    password = prompt("The password does not match. Please check the password.");
+  }
+  if (!password) {
+    return unzipPasswordPrompt(false);
+  }
+  return password;
+}
 async function responsify(responsifiable, init) {
   switch (responsifiable.constructor) {
     case ReadableStream:
