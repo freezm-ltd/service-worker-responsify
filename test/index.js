@@ -12954,7 +12954,7 @@ var Responsify = class _Responsify {
     return this._instance;
   }
   // reserve (promised) window-created response and forward to service worker future
-  static async reserve(generator, reuse = false) {
+  static async reserve(generator, reuse) {
     const result = await this.instance.messenger.request("reserve", null);
     this.instance.reserved.set(result.id, async (request) => {
       return responsify(await generator(request), { reuse });
