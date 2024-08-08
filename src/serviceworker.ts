@@ -457,15 +457,29 @@ export class Responser extends EventTarget2 {
         }
     }
 
-    async createResponse(request: Request) {
+    async createResponse(request: Request): Promise<Response> {
         const id = this.parseId(request.url)!
         if (this.storage.has(id)) {
             const responsified = await this.storage.get(id)!(request)
             const { reuse, body, ...init } = responsified
             if (!reuse) this.storage.delete(id);
+            if (responsified.status === 301 || responsified.status === 302) { // redirect
+                const precursor = request2precursor(request.clone())
+                precursor.url = responsified.headers!.location!
+                return await this.createResponse(precursor2request(precursor))
+            }
             return new Response(body, init)
         }
-        return await fetch(request) //new Response(undefined, { status: 404 })
+        if (request.method === "HEAD" && request.url.startsWith("blob:")) { // blob url HEAD request
+            const length = (await fetch(request.url)).headers.get("Content-Length")!
+            return new Response(null, {
+                headers: {
+                    "Accept-Ranges": "bytes",
+                    "Content-Length": length,
+                }
+            })
+        }
+        return await fetch(request)
     }
 
     async createResponseFromPrecursor(precursor: RequestPrecursor | RequestPrecursorWithStream | RequestPrecursorExtended, start?: number, length?: number) {

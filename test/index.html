@@ -114,10 +114,10 @@
         function testUnzip() {
             document.getElementById("unzip-file").onchange = async (e) => {
                 console.log(e)
-                console.log(await Responsify.forward({ body: e.target.files[0], reuse: true }))
                 const file = e.target.files[0]
-                const ourl = URL.createObjectURL(file)
-                viewUnzip(ourl, document.getElementById("list"))
+                const rurl = await Responsify.reserve(() => URL.createObjectURL(file), true)
+                const furl = await Responsify.forward({ body: file, reuse: true })
+                viewUnzip(rurl, document.getElementById("list"))
             }
         }
 

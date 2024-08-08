@@ -87,7 +87,6 @@ export class Responsify {
             const responsified = this.reserved.get(id)
             if (responsified) {
                 const result = await responsified(precursor2request(precursor))
-                if (!result.reuse) this.reserved.delete(id);
                 if (result.body instanceof ReadableStream) {
                     return { payload: result, transfer: [result.body] }
                 }
@@ -110,6 +109,7 @@ export class Responsify {
     static async reserve(generator: ResponsifiableGenerator, reuse: boolean): Promise<string> {
         const result = await this.instance.messenger.request<null, ResponsifyResponse>("reserve", null)
         this.instance.reserved.set(result.id, async (request: Request) => {
+            if (!reuse) this.instance.reserved.delete(result.id);
             return responsify(await generator(request), { reuse })
         })
         return result.url
@@ -183,8 +183,8 @@ export async function responsify(responsifiable: Responsifiable, init?: Responsi
         case Request: return responsifyRequest(responsifiable as Request, init)
         case Response: return responsifyResponse(responsifiable as Response, init)
         case String:
-        case URL: return responsifyResponse(Response.redirect((responsifiable as string | URL), 301));
-        default: return responsifyResponse(new Response(responsifiable as BodyInit))
+        case URL: return responsifyResponse(Response.redirect((responsifiable as string | URL), 301), init);
+        default: return responsifyResponse(new Response(responsifiable as BodyInit), init)
     }
 }
 

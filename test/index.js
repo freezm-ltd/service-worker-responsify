@@ -12845,7 +12845,21 @@ var Responser = class _Responser extends EventTarget22 {
       const responsified = await this.storage.get(id)(request);
       const { reuse, body, ...init } = responsified;
       if (!reuse) this.storage.delete(id);
+      if (responsified.status === 301 || responsified.status === 302) {
+        const precursor = request2precursor(request.clone());
+        precursor.url = responsified.headers.location;
+        return await this.createResponse(precursor2request(precursor));
+      }
       return new Response(body, init);
+    }
+    if (request.method === "HEAD" && request.url.startsWith("blob:")) {
+      const length = (await fetch(request.url)).headers.get("Content-Length");
+      return new Response(null, {
+        headers: {
+          "Accept-Ranges": "bytes",
+          "Content-Length": length
+        }
+      });
     }
     return await fetch(request);
   }
@@ -12936,7 +12950,6 @@ var Responsify = class _Responsify {
       const responsified = this.reserved.get(id);
       if (responsified) {
         const result = await responsified(precursor2request(precursor));
-        if (!result.reuse) this.reserved.delete(id);
         if (result.body instanceof ReadableStream) {
           return { payload: result, transfer: [result.body] };
         }
@@ -12957,6 +12970,7 @@ var Responsify = class _Responsify {
   static async reserve(generator, reuse) {
     const result = await this.instance.messenger.request("reserve", null);
     this.instance.reserved.set(result.id, async (request) => {
+      if (!reuse) this.instance.reserved.delete(result.id);
       return responsify(await generator(request), { reuse });
     });
     return result.url;
@@ -13024,9 +13038,9 @@ async function responsify(responsifiable, init) {
       return responsifyResponse(responsifiable, init);
     case String:
     case URL:
-      return responsifyResponse(Response.redirect(responsifiable, 301));
+      return responsifyResponse(Response.redirect(responsifiable, 301), init);
     default:
-      return responsifyResponse(new Response(responsifiable));
+      return responsifyResponse(new Response(responsifiable), init);
   }
 }
 async function responsifyRequest(request, init) {
