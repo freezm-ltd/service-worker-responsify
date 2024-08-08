@@ -2,7 +2,7 @@ import { Messenger, MessengerFactory } from "@freezm-ltd/post-together"
 import { EntryMetaData } from "@zip.js/zip.js"
 import { UNZIP_CACHE_RETAIN_INTERVAL } from "./serviceworker"
 
-export type Responsifiable = ReadableStream<Uint8Array> | Request | Response | URL | string
+export type Responsifiable = ReadableStream<Uint8Array> | Request | Response | BufferSource | Blob | URL | string
 export type ResponsifiableGenerator = (request: Request) => PromiseLike<Responsifiable>
 export type ResponsifyOrigin = "window" | "serviceworker"
 
@@ -184,7 +184,7 @@ export async function responsify(responsifiable: Responsifiable, init?: Responsi
         case Response: return responsifyResponse(responsifiable as Response, init)
         case String:
         case URL: return responsifyResponse(Response.redirect((responsifiable as string | URL), 301));
-        default: throw new Error('Cannot responsify from argument "responsifiable"')
+        default: return responsifyResponse(new Response(responsifiable as BodyInit))
     }
 }
 

@@ -13026,7 +13026,7 @@ async function responsify(responsifiable, init) {
     case URL:
       return responsifyResponse(Response.redirect(responsifiable, 301));
     default:
-      throw new Error('Cannot responsify from argument "responsifiable"');
+      return responsifyResponse(new Response(responsifiable));
   }
 }
 async function responsifyRequest(request, init) {
