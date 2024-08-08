@@ -12582,28 +12582,30 @@ var Responser = class _Responser extends EventTarget22 {
       });
       return uurl;
     });
-    this.messenger.response("merge", (merge) => {
-      merge.sort((a2, b2) => a2.index - b2.index);
+    this.messenger.response("merge", (responsifiedExtended) => {
+      const { parts, ...init } = responsifiedExtended;
+      parts.sort((a2, b2) => a2.index - b2.index);
       const uurl = this.getUniqueURL();
-      const reuse = merge.every((part) => part.request.reuse);
       this.storage.set(uurl.id, (request) => {
-        const result = { reuse };
-        const parts = [];
+        const result = init;
+        result.headers = result.headers || {};
+        result.headers["Accept-Ranges"] = "bytes";
+        const precursors = [];
         const contentRange = { start: -1, end: -1 };
-        const lastPart = merge[merge.length - 1];
-        const total = lastPart.length ? lastPart.index + lastPart.length : void 0;
+        const lastPart = parts[parts.length - 1];
+        const total = init.length || (lastPart.length ? lastPart.index + lastPart.length : void 0);
         if (request.headers.has("Range")) {
           const range = request.headers.get("Range");
           let { start, end } = parseRange(range, total);
           end += 1;
           if (end < 1) end = Number.MAX_SAFE_INTEGER;
-          for (let i2 = 0; i2 < merge.length; i2++) {
-            const p1 = merge[i2].index;
-            const p2 = merge[i2 + 1]?.index || Number.MAX_SAFE_INTEGER;
+          for (let i2 = 0; i2 < parts.length; i2++) {
+            const p1 = parts[i2].index;
+            const p2 = parts[i2 + 1]?.index || Number.MAX_SAFE_INTEGER;
             if (p2 <= start || end <= p1) {
               continue;
             }
-            const part = structuredClone(merge[i2].request);
+            const part = structuredClone(parts[i2].request);
             let range2 = "";
             if (start <= p1 && p2 <= end) {
             } else if (p1 <= start && end <= p2) {
@@ -12630,26 +12632,22 @@ var Responser = class _Responser extends EventTarget22 {
               headers.set("Range", range2);
               part.headers = Object.fromEntries([...headers]);
             }
-            parts.push(part);
+            precursors.push(part);
           }
           result.status = 206;
           result.statusText = "Partial Content";
           {
             const { start: start2, end: end2 } = contentRange;
-            result.headers = {
-              "Content-Range": `bytes ${start2}-${end2 < 0 ? "" : end2}/${total ? total : "*"}`,
-              "Content-Length": end2 < 0 ? "" : (end2 - start2 + 1).toString()
-            };
+            result.headers["Content-Range"] = `bytes ${start2}-${end2 < 0 ? "" : end2}/${total ? total : "*"}`;
+            result.headers["Content-Length"] = end2 < 0 ? "" : (end2 - start2 + 1).toString();
           }
         } else {
-          parts.push(...merge.map((m) => m.request));
+          precursors.push(...parts.map((m) => m.request));
           result.status = 200;
           result.statusText = "OK";
         }
-        result.headers = result.headers || {};
-        result.headers["Accept-Ranges"] = "bytes";
         if (request.method === "GET") {
-          const generators = parts.map((p2) => async () => (await this.createResponseFromPrecursor(p2)).body);
+          const generators = precursors.map((p2) => async () => (await this.createResponseFromPrecursor(p2)).body);
           result.body = mergeStream(generators);
         }
         return result;

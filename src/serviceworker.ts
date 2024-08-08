@@ -145,32 +145,35 @@ export class Responser extends EventTarget2 {
         })
 
         // merge
-        this.messenger.response<MergeRequest, ResponsifyResponse>("merge", (merge) => {
-            merge.sort((a, b) => a.index - b.index)
+        this.messenger.response<MergeRequest, ResponsifyResponse>("merge", (responsifiedExtended) => {
+            const { parts, ...init } = responsifiedExtended
+            parts.sort((a, b) => a.index - b.index)
             const uurl = this.getUniqueURL()
-            const reuse = merge.every(part => part.request.reuse)
             this.storage.set(uurl.id, (request: Request) => {
-                const result: Responsified = { reuse }
-                const parts: Array<RequestPrecursor> = []
+                const result: Responsified = init
+                result.headers = result.headers || {}
+                result.headers["Accept-Ranges"] = "bytes"
+
+                const precursors: Array<RequestPrecursor> = []
                 const contentRange = { start: -1, end: -1 }
-                const lastPart = merge[merge.length - 1]
-                const total = lastPart.length ? lastPart.index + lastPart.length : undefined
+                const lastPart = parts[parts.length - 1]
+                const total = init.length || (lastPart.length ? lastPart.index + lastPart.length : undefined)
 
                 if (request.headers.has("Range")) { // range request
                     const range = request.headers.get("Range") as Range
                     let { start, end } = parseRange(range, total)
                     end += 1
                     if (end < 1) end = Number.MAX_SAFE_INTEGER;
-                    for (let i = 0; i < merge.length; i++) {
-                        const p1 = merge[i].index
-                        const p2 = merge[i + 1]?.index || Number.MAX_SAFE_INTEGER
+                    for (let i = 0; i < parts.length; i++) {
+                        const p1 = parts[i].index
+                        const p2 = parts[i + 1]?.index || Number.MAX_SAFE_INTEGER
 
                         if (p2 <= start || end <= p1) { //  --[==]--<-->-- or --<-->--[==]--
                             // skip
                             continue
                         }
 
-                        const part = structuredClone(merge[i].request)
+                        const part = structuredClone(parts[i].request)
                         let range = ""
 
                         if (start <= p1 && p2 <= end) { // --<--[==]-->--  ;  [==]
@@ -204,27 +207,23 @@ export class Responser extends EventTarget2 {
                             headers.set("Range", range)
                             part.headers = Object.fromEntries([...headers])
                         }
-                        parts.push(part)
+                        precursors.push(part)
                     }
                     result.status = 206
                     result.statusText = "Partial Content"
                     {
                         const { start, end } = contentRange
-                        result.headers = {
-                            "Content-Range": `bytes ${start}-${end < 0 ? "" : end}/${total ? total : "*"}`,
-                            "Content-Length": end < 0 ? "" : (end - start + 1).toString()
-                        }
+                        result.headers["Content-Range"] = `bytes ${start}-${end < 0 ? "" : end}/${total ? total : "*"}`
+                        result.headers["Content-Length"] = end < 0 ? "" : (end - start + 1).toString()
                     }
                 } else {
-                    parts.push(...merge.map(m => m.request))
+                    precursors.push(...parts.map(m => m.request))
                     result.status = 200
                     result.statusText = "OK"
                 }
-                result.headers = result.headers || {}
-                result.headers["Accept-Ranges"] = "bytes"
 
                 if (request.method === "GET") { // GET request, add body
-                    const generators = parts.map((p) => async () => (await this.createResponseFromPrecursor(p)).body!)
+                    const generators = precursors.map((p) => async () => (await this.createResponseFromPrecursor(p)).body!)
                     result.body = mergeStream(generators)
                 }
 

@@ -70,7 +70,7 @@
                     })
                 }
                 console.log(parts)
-                const url = await Responsify.merge(parts)
+                const url = await Responsify.merge({ parts, reuse: true, headers: { "Cool": "Yeah" } })
                 console.log(await (await fetch(url, { headers: { Range: "bytes=10-50" } })).arrayBuffer())
                 console.log(await (await fetch(url, { headers: { Range: "bytes=-5" } })).arrayBuffer())
                 console.log(await (await fetch(url, { headers: { Range: "bytes=245-" } })).arrayBuffer())

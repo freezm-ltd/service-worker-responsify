@@ -53,7 +53,7 @@ export type PartRequest = {
     length?: number // last one need when suffix request
     request: RequestPrecursorExtended
 }
-export type MergeRequest = Array<PartRequest>
+export type MergeRequest = Omit<Responsified, "body"> & { parts: Array<PartRequest> }
 
 export type ZipEntryRequest = {
     name: string
