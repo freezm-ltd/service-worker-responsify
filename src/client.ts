@@ -51,7 +51,7 @@ export type ReservedRequest = {
 export type PartRequest = {
     index: number
     length?: number // last one need when suffix request
-    request: RequestPrecursorExtended
+    request: RequestPrecursor
 }
 export type MergeRequest = Omit<Responsified, "body"> & { parts: Array<PartRequest> }
 
