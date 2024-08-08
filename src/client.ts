@@ -72,9 +72,10 @@ export type UnzipRequest = {
 }
 export type UnzipResponse = ResponsifyResponse & {
     passwordNeed: boolean
-    entries: Record<string, EntryMetaData>
+    entries: Record<string, EntryMetadataHttp>
     unzipId: string // unique id, to allow parallel access
 }
+export type EntryMetadataHttp = EntryMetaData & { url: string }
 
 export class Responsify {
     protected static _instance: Responsify

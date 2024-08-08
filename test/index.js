@@ -12443,6 +12443,31 @@ function getUint16LE(uint8View, offset) {
   return uint8View[offset] + uint8View[offset + 1] * 256;
 }
 
+// src/utils.ts
+function base64URLencode(str) {
+  return btoa(
+    encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, function(match, p1) {
+      return String.fromCharCode(parseInt(p1, 16));
+    })
+  ).replace(/[+/]/g, (m) => ENC[m]);
+}
+function base64URLdecode(str) {
+  return decodeURIComponent(
+    Array.prototype.map.call(atob(str.replace(/[-_.]/g, (m) => DEC[m])), function(c) {
+      return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join("")
+  );
+}
+var ENC = {
+  "+": "-",
+  "/": "_"
+};
+var DEC = {
+  "-": "+",
+  "_": "/",
+  ".": "="
+};
+
 // src/serviceworker.ts
 function createId() {
   return crypto.randomUUID();
@@ -12689,12 +12714,14 @@ var Responser = class _Responser extends EventTarget22 {
           }
           data[key] = value;
         }
+        data["url"] = uurl.url + "&path=" + base64URLencode(name);
         entryMetaData[name] = data;
       }
       this.storage.set(uurl.id, async (request) => {
         const param = new URL(request.url).searchParams;
-        const path = param.get("path");
+        let path = param.get("path");
         if (!path) return { status: 400, body: "Need searchParam - 'path'", reuse: true };
+        path = base64URLdecode(path);
         const entry = entryMap.get(path);
         if (!entry) return { status: 404, body: "Entry not found", reuse: true };
         const data = entry.data;

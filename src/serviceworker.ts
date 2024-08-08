@@ -1,10 +1,11 @@
 import { Messenger, MessengerFactory } from "@freezm-ltd/post-together"
-import { MergeRequest, PartRequest, precursor2request, request2precursor, RequestPrecursor, RequestPrecursorExtended, RequestPrecursorWithStream, ReservedRequest, Responsified, responsify, ResponsifyResponse, UnzipRequest, UnzipResponse, ZipEntryRequest, ZipRequest } from "./client"
+import { EntryMetadataHttp, MergeRequest, PartRequest, precursor2request, request2precursor, RequestPrecursor, RequestPrecursorExtended, RequestPrecursorWithStream, ReservedRequest, Responsified, responsify, ResponsifyResponse, UnzipRequest, UnzipResponse, ZipEntryRequest, ZipRequest } from "./client"
 import { EventTarget2 } from "@freezm-ltd/event-target-2"
 import { fitMetaByteStream, lengthCallback, mergeStream, sliceByteStream } from "@freezm-ltd/stream-utils"
 import { makeZip, predictLength } from "client-zip"
 import { Entry, EntryMetaData, fs, ZipEntry } from "@zip.js/zip.js"
 import { getUint16LE, ResponsifiedReader } from "./zip"
+import { base64URLdecode, base64URLencode } from "./utils"
 
 function createId() {
     return crypto.randomUUID()
@@ -271,7 +272,7 @@ export class Responser extends EventTarget2 {
             let passwordChecked = false
             const entryMap: Map<string, ZipEntry> = new Map()
             const entryDataOffset: Map<string, number> = new Map()
-            const entryMetaData: Record<string, EntryMetaData> = {}
+            const entryMetaData: Record<string, EntryMetadataHttp> = {}
             const entryInit: Map<string, EventTarget2> = new Map()
             const entryCurrentStream: Record<string, ReadableStream<Uint8Array>> = {}
             const entryCurrentNumber: Record<string, number> = {}
@@ -297,13 +298,15 @@ export class Responser extends EventTarget2 {
                     }
                     data[key] = value
                 }
-                entryMetaData[name] = data as EntryMetaData
+                data["url"] = uurl.url + "&path=" + base64URLencode(name)
+                entryMetaData[name] = data as EntryMetadataHttp
             }
 
             this.storage.set(uurl.id, async (request) => {
                 const param = (new URL(request.url)).searchParams
-                const path = param.get("path")
+                let path = param.get("path")
                 if (!path) return { status: 400, body: "Need searchParam - 'path'", reuse: true }
+                path = base64URLdecode(path)
                 const entry = entryMap.get(path)
                 if (!entry) return { status: 404, body: "Entry not found", reuse: true }
                 const data = entry.data! as Entry

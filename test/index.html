@@ -124,8 +124,8 @@
         async function viewUnzip(url, parent) {
             const result = await Responsify.unzip({ request: { url } })
             console.log(result)
-            for (let name of Object.keys(result.entries)) {
-                const childUrl = result.url + "&path=" + name
+            for (let [name, entry] of Object.entries(result.entries)) {
+                const childUrl = entry.url
                 let childElement;
                 if (name.endsWith(".zip")) {
                     const div = document.createElement("div")

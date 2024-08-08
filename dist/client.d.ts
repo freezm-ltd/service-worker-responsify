@@ -62,8 +62,11 @@ export type UnzipRequest = {
 };
 export type UnzipResponse = ResponsifyResponse & {
     passwordNeed: boolean;
-    entries: Record<string, EntryMetaData>;
+    entries: Record<string, EntryMetadataHttp>;
     unzipId: string;
+};
+export type EntryMetadataHttp = EntryMetaData & {
+    url: string;
 };
 export declare class Responsify {
     protected static _instance: Responsify;
@@ -79,7 +82,7 @@ export declare class Responsify {
     readonly unzipRetain: Set<string>;
     static unzip(unzip: UnzipRequest, promptPassword?: (isFirst: boolean) => string | PromiseLike<string>): Promise<{
         url: string;
-        entries: Record<string, EntryMetaData>;
+        entries: Record<string, EntryMetadataHttp>;
     }>;
     static revoke(url: string): Promise<boolean>;
 }
