@@ -1,6 +1,6 @@
 import { Messenger } from "@freezm-ltd/post-together";
 import { EntryMetaData } from "@zip.js/zip.js";
-export type Responsifiable = ReadableStream<Uint8Array> | Request | Response | URL;
+export type Responsifiable = ReadableStream<Uint8Array> | Request | Response | URL | string;
 export type ResponsifiableGenerator = (request: Request) => PromiseLike<Responsifiable>;
 export type ResponsifyOrigin = "window" | "serviceworker";
 export type RequestPrecursor = {
