@@ -335,9 +335,6 @@ export class Responser extends EventTarget2 {
                 }
                 Object.assign(result.headers!, getDownloadHeader(base(data.filename)))
 
-                // reading instances
-                let reading = 0
-
                 if (request.method === "HEAD") { // HEAD request, no body
                     return result
                 }
@@ -364,8 +361,7 @@ export class Responser extends EventTarget2 {
                                 const [stream1, stream2] = stream.tee()
                                 entryCurrentStream[path] = stream1
                                 entryCurrentNumber[path] = number
-                                if (!await caches.has(cacheKey) && reading <= 0) { // if cache deleted and no one reading
-                                    console.debug({ status: "forced read", reading })
+                                if (!await caches.has(cacheKey)) { // if cache deleted
                                     const reason = "cache deleted"
                                     controller.error(reason)
                                     stream.cancel(reason)
@@ -385,8 +381,6 @@ export class Responser extends EventTarget2 {
                     const endOffset = (range.end + 1) % UNZIP_CACHE_CHUNK_SIZE
                     const cycle = async () => {
                         let errored = false
-                        reading++ // add reading marker
-                        console.debug({ status: "read++", reading })
                         for (let i = startNumber; i <= endNumber; i++) {
                             let source: ReadableStream<Uint8Array>
                             if (entryCurrentNumber[path] > i) {
@@ -416,8 +410,6 @@ export class Responser extends EventTarget2 {
                             if (errored) return;
                         }
                         await writable.close()
-                        reading-- // delete reading marker
-                        console.debug({ status: "read--", reading, errored })
                     }
                     cycle()
                     result.body = readable

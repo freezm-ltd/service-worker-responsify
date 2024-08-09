@@ -12773,7 +12773,6 @@ var Responser = class _Responser extends EventTarget22 {
           status: isRanged ? 206 : 200
         };
         Object.assign(result.headers, getDownloadHeader(base(data.filename)));
-        let reading = 0;
         if (request.method === "HEAD") {
           return result;
         }
@@ -12800,8 +12799,7 @@ var Responser = class _Responser extends EventTarget22 {
                 const [stream1, stream2] = stream.tee();
                 entryCurrentStream[path] = stream1;
                 entryCurrentNumber[path] = number;
-                if (!await caches.has(cacheKey) && reading <= 0) {
-                  console.debug({ status: "forced read", reading });
+                if (!await caches.has(cacheKey)) {
                   const reason = "cache deleted";
                   controller.error(reason);
                   stream.cancel(reason);
@@ -12821,8 +12819,6 @@ var Responser = class _Responser extends EventTarget22 {
           const endOffset = (range.end + 1) % UNZIP_CACHE_CHUNK_SIZE;
           const cycle = async () => {
             let errored = false;
-            reading++;
-            console.debug({ status: "read++", reading });
             for (let i2 = startNumber; i2 <= endNumber; i2++) {
               let source;
               if (entryCurrentNumber[path] > i2) {
@@ -12850,8 +12846,6 @@ var Responser = class _Responser extends EventTarget22 {
               if (errored) return;
             }
             await writable.close();
-            reading--;
-            console.debug({ status: "read--", reading, errored });
           };
           cycle();
           result.body = readable;
