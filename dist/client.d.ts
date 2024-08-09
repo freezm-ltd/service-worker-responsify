@@ -82,7 +82,7 @@ export declare class Responsify {
     static merge(merge: MergeRequest): Promise<string>;
     static zip(zip: ZipRequest): Promise<string>;
     readonly unzipRetain: Set<string>;
-    static unzip(unzip: UnzipRequest, promptPassword?: (isFirst: boolean) => string | PromiseLike<string>): Promise<{
+    static unzip(unzip: UnzipRequest, timeout?: number, promptPassword?: (isFirst: boolean) => string | PromiseLike<string>): Promise<{
         url: string;
         entries: Record<string, EntryMetadataHttp>;
     }>;

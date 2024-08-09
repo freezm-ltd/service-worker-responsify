@@ -13069,11 +13069,11 @@ var Responsify = class _Responsify {
   static async zip(zip) {
     return (await this.instance.messenger.request("zip", zip)).url;
   }
-  static async unzip(unzip, promptPassword = unzipPromptPassword) {
+  static async unzip(unzip, timeout = 5 * 60 * 1e3, promptPassword = unzipPromptPassword) {
     let result = void 0;
     let isFirst = true;
     while (!result || result.passwordNeed) {
-      result = await this.instance.messenger.request("unzip", unzip);
+      result = await this.instance.messenger.request("unzip", unzip, void 0, timeout);
       if (result.passwordNeed) {
         unzip.password = await promptPassword(isFirst);
         isFirst = false;

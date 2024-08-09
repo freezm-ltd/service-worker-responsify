@@ -142,11 +142,11 @@ export class Responsify {
 
     // unzip
     readonly unzipRetain: Set<string> = new Set()
-    static async unzip(unzip: UnzipRequest, promptPassword: (isFirst: boolean) => string | PromiseLike<string> = unzipPromptPassword) {
+    static async unzip(unzip: UnzipRequest, timeout = 5 * 60 * 1000, promptPassword: (isFirst: boolean) => string | PromiseLike<string> = unzipPromptPassword) {
         let result: UnzipResponse | undefined = undefined
         let isFirst = true
         while (!result || result.passwordNeed) {
-            result = await this.instance.messenger.request<UnzipRequest, UnzipResponse>("unzip", unzip)
+            result = await this.instance.messenger.request<UnzipRequest, UnzipResponse>("unzip", unzip, undefined, timeout)
             if (result.passwordNeed) {
                 unzip.password = await promptPassword(isFirst)
                 isFirst = false
