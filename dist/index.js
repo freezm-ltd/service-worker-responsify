@@ -12860,7 +12860,8 @@ var Responser = class _Responser extends EventTarget22 {
               });
               if (errored) return;
             }
-            await writable.close();
+            writable.close().catch(() => {
+            });
           };
           cycle();
           result.body = readable;

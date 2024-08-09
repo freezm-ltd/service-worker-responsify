@@ -375,7 +375,7 @@ export class Responser extends EventTarget2 {
                         })).catch(() => {
                             // slient catch
                         }).finally(() => {
-                            writable.close().catch(() => {/* slient catch */})
+                            writable.close().catch(() => {/* slient catch */ })
                         })
                     }
                     const { readable, writable } = new TransformStream()
@@ -413,7 +413,7 @@ export class Responser extends EventTarget2 {
                             })
                             if (errored) return;
                         }
-                        await writable.close()
+                        writable.close().catch(() => {/* silent catch */})
                     }
                     cycle()
                     result.body = readable
