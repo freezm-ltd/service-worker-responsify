@@ -360,7 +360,11 @@ export class Responser extends EventTarget2 {
                                 if (!await caches.has(cacheKey)) { // if cache deleted
                                     const reason = "cache deleted"
                                     controller.error(reason)
-                                    stream.cancel(reason)
+                                    stream.pipeTo(new WritableStream({
+                                        write() {
+                                            // drain
+                                        }
+                                    }))
                                     return
                                 }
                                 number += 1
@@ -413,7 +417,7 @@ export class Responser extends EventTarget2 {
                             })
                             if (errored) return;
                         }
-                        writable.close().catch(() => {/* silent catch */})
+                        writable.close().catch(() => {/* silent catch */ })
                     }
                     cycle()
                     result.body = readable

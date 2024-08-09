@@ -12810,7 +12810,10 @@ var Responser = class _Responser extends EventTarget22 {
                 if (!await caches.has(cacheKey)) {
                   const reason = "cache deleted";
                   controller.error(reason);
-                  stream.cancel(reason);
+                  stream.pipeTo(new WritableStream({
+                    write() {
+                    }
+                  }));
                   return;
                 }
                 number += 1;
