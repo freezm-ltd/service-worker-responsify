@@ -149,6 +149,9 @@ export class Responser extends EventTarget2 {
             const { parts, ...init } = responsifiedExtended
             parts.sort((a, b) => a.index - b.index)
             const uurl = this.getUniqueURL()
+            const lastPart = parts[parts.length - 1]
+            const total = init.length || (lastPart.length ? lastPart.index + lastPart.length : undefined)
+
             this.storage.set(uurl.id, (request: Request) => {
                 const result: Responsified = init
                 result.headers = result.headers || {}
@@ -156,8 +159,6 @@ export class Responser extends EventTarget2 {
 
                 const precursors: Array<RequestPrecursor> = []
                 const contentRange = { start: -1, end: -1 }
-                const lastPart = parts[parts.length - 1]
-                const total = init.length || (lastPart.length ? lastPart.index + lastPart.length : undefined)
 
                 if (request.headers.has("Range")) { // range request
                     const range = request.headers.get("Range") as Range
@@ -220,6 +221,7 @@ export class Responser extends EventTarget2 {
                     precursors.push(...parts.map(m => m.request))
                     result.status = 200
                     result.statusText = "OK"
+                    if (total) result.headers["Content-Length"] = total.toString();
                 }
 
                 if (request.method === "GET") { // GET request, add body

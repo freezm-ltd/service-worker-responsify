@@ -12586,14 +12586,14 @@ var Responser = class _Responser extends EventTarget22 {
       const { parts, ...init } = responsifiedExtended;
       parts.sort((a2, b2) => a2.index - b2.index);
       const uurl = this.getUniqueURL();
+      const lastPart = parts[parts.length - 1];
+      const total = init.length || (lastPart.length ? lastPart.index + lastPart.length : void 0);
       this.storage.set(uurl.id, (request) => {
         const result = init;
         result.headers = result.headers || {};
         result.headers["Accept-Ranges"] = "bytes";
         const precursors = [];
         const contentRange = { start: -1, end: -1 };
-        const lastPart = parts[parts.length - 1];
-        const total = init.length || (lastPart.length ? lastPart.index + lastPart.length : void 0);
         if (request.headers.has("Range")) {
           const range = request.headers.get("Range");
           let { start, end } = parseRange(range, total);
@@ -12645,6 +12645,7 @@ var Responser = class _Responser extends EventTarget22 {
           precursors.push(...parts.map((m) => m.request));
           result.status = 200;
           result.statusText = "OK";
+          if (total) result.headers["Content-Length"] = total.toString();
         }
         if (request.method === "GET") {
           const generators = precursors.map((p2) => async () => (await this.createResponseFromPrecursor(p2)).body);
