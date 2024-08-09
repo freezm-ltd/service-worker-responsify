@@ -12803,10 +12803,10 @@ var Responser = class _Responser extends EventTarget22 {
             let number = entryCurrentNumber[path] = -1;
             const { readable: readable2, writable: writable2 } = fitMetaByteStream(UNZIP_CACHE_CHUNK_SIZE);
             const abortController = new AbortController();
-            data.getData(writable2, { password, preventClose: true, signal: abortController.signal }).catch((e3) => {
+            data.getData(writable2, { password, signal: abortController.signal }).catch((e3) => {
               console.debug("Entry.getData error:", e3);
             });
-            await readable2.pipeTo(new WritableStream({
+            readable2.pipeTo(new WritableStream({
               async write(stream) {
                 if (!await caches.has(cacheKey)) {
                   const reason = "cache deleted";
@@ -12823,7 +12823,6 @@ var Responser = class _Responser extends EventTarget22 {
                 if (entryCurrentStream[path].locked) entryCurrentStream[path].cancel("expired");
               }
             }));
-            writable2.close();
           }
           const { readable, writable } = new TransformStream();
           const startNumber = Math.floor(range.start / UNZIP_CACHE_CHUNK_SIZE);
@@ -12853,13 +12852,12 @@ var Responser = class _Responser extends EventTarget22 {
               } else if (sliceEnd) {
                 source = source.pipeThrough(sliceByteStream(0, endOffset));
               }
-              await source.pipeTo(writable, { preventClose: true, preventCancel: true }).catch((e3) => {
+              await source.pipeTo(writable, { preventClose: true, preventCancel: true }).catch(() => {
                 errored = true;
               });
-              if (errored) return;
+              if (errored) break;
             }
-            writable.close().catch(() => {
-            });
+            if (!errored) writable.close();
           };
           cycle();
           result.body = readable;

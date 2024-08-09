@@ -355,8 +355,8 @@ export class Responser extends EventTarget2 {
                         let number = entryCurrentNumber[path] = -1
                         const { readable, writable } = fitMetaByteStream(UNZIP_CACHE_CHUNK_SIZE)
                         const abortController = new AbortController()
-                        data.getData!(writable, { password, preventClose: true, signal: abortController.signal }).catch((e) => { console.debug("Entry.getData error:", e) })
-                        await readable.pipeTo(new WritableStream({
+                        data.getData!(writable, { password, signal: abortController.signal }).catch((e) => { console.debug("Entry.getData error:", e) })
+                        readable.pipeTo(new WritableStream({
                             async write(stream) {
                                 if (!await caches.has(cacheKey)) { // if cache deleted
                                     const reason = "cache deleted"
@@ -373,7 +373,6 @@ export class Responser extends EventTarget2 {
                                 if (entryCurrentStream[path].locked) entryCurrentStream[path].cancel("expired"); // for GC
                             }
                         }))
-                        writable.close()
                     }
                     const { readable, writable } = new TransformStream()
                     const startNumber = Math.floor(range.start / UNZIP_CACHE_CHUNK_SIZE)
@@ -404,13 +403,13 @@ export class Responser extends EventTarget2 {
                             } else if (sliceEnd) {
                                 source = source.pipeThrough(sliceByteStream(0, endOffset))
                             }
-                            await source.pipeTo(writable, { preventClose: true, preventCancel: true }).catch((e) => {
+                            await source.pipeTo(writable, { preventClose: true, preventCancel: true }).catch(() => {
                                 // slient catch
                                 errored = true
                             })
-                            if (errored) return;
+                            if (errored) break;
                         }
-                        writable.close().catch(() => {/* silent catch */ })
+                        if (!errored) writable.close();
                     }
                     cycle()
                     result.body = readable
