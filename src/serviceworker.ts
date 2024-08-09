@@ -356,7 +356,7 @@ export class Responser extends EventTarget2 {
                         const { readable, writable } = fitMetaByteStream(UNZIP_CACHE_CHUNK_SIZE)
                         const abortController = new AbortController()
                         data.getData!(writable, { password, preventClose: true, signal: abortController.signal }).catch((e) => { console.debug("Entry.getData error:", e) })
-                        readable.pipeTo(new WritableStream({
+                        await readable.pipeTo(new WritableStream({
                             async write(stream) {
                                 if (!await caches.has(cacheKey)) { // if cache deleted
                                     const reason = "cache deleted"

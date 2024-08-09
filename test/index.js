@@ -12806,7 +12806,7 @@ var Responser = class _Responser extends EventTarget22 {
             data.getData(writable2, { password, preventClose: true, signal: abortController.signal }).catch((e3) => {
               console.debug("Entry.getData error:", e3);
             });
-            readable2.pipeTo(new WritableStream({
+            await readable2.pipeTo(new WritableStream({
               async write(stream) {
                 if (!await caches.has(cacheKey)) {
                   const reason = "cache deleted";
