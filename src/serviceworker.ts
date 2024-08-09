@@ -468,10 +468,10 @@ export class Responser extends EventTarget2 {
             const { reuse, body, ...init } = responsified
             if (!reuse) this.storage.delete(id);
             if (responsified.status === 301 || responsified.status === 302) { // redirect
-                const precursor = request2precursor(request.clone())
-                precursor.url = responsified.headers!.location!
-                return await this.createResponse(precursor2request(precursor))
+                const location = responsified.headers!.location!
+                return await this.createResponse(new Request(location, request))
             }
+            console.debug(responsified)
             return new Response(body, init)
         }
         if (request.method === "HEAD" && request.url.startsWith("blob:")) { // blob url HEAD request

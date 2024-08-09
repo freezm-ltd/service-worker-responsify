@@ -29,7 +29,7 @@
         }
         window.test = {
             reserve: async (url = "https://example.com") => {
-                console.log(await fetch(await Responsify.reserve(() => new Request(url), true)))
+                console.log(await fetch(await Responsify.reserve(() => url, true)))
             },
             forward: async (text = "Hello, Responsify!!") => {
                 const [stream1, stream2] = (text2stream(text)).tee();
@@ -62,9 +62,10 @@
                 const parts = []
                 for (let i = 0; i < piece; i++) {
                     const body = data.slice(size * i, size * (i + 1))
-                    const url = await Responsify.forward({ reuse: true, body })
+                    const url = await Responsify.forward({ reuse: true, body: new ReadableStream({ start(controller) { controller.enqueue(body); controller.close() } }) })
+                    const rurl = await Responsify.reserve(() => url, true)
                     parts.push({
-                        request: { url, reuse: true },
+                        request: { url: rurl, reuse: true },
                         index: size * i,
                         length: body.length
                     })

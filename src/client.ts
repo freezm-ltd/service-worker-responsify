@@ -142,7 +142,7 @@ export class Responsify {
 
     // unzip
     readonly unzipRetain: Set<string> = new Set()
-    static async unzip(unzip: UnzipRequest, promptPassword: (isFirst: boolean) => string | PromiseLike<string> = unzipPasswordPrompt) {
+    static async unzip(unzip: UnzipRequest, promptPassword: (isFirst: boolean) => string | PromiseLike<string> = unzipPromptPassword) {
         let result: UnzipResponse | undefined = undefined
         let isFirst = true
         while (!result || result.passwordNeed) {
@@ -165,7 +165,7 @@ export class Responsify {
     }
 }
 
-function unzipPasswordPrompt(isFirst: boolean) {
+function unzipPromptPassword(isFirst: boolean) {
     let password
     if (isFirst) {
         password = prompt("This file is encrypted. Please enter the password.")
@@ -173,7 +173,7 @@ function unzipPasswordPrompt(isFirst: boolean) {
         password = prompt("The password does not match. Please check the password.")
     }
     if (!password) {
-        return unzipPasswordPrompt(false)
+        return unzipPromptPassword(false)
     }
     return password
 }

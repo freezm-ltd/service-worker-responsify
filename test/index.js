@@ -12872,10 +12872,10 @@ var Responser = class _Responser extends EventTarget22 {
       const { reuse, body, ...init } = responsified;
       if (!reuse) this.storage.delete(id);
       if (responsified.status === 301 || responsified.status === 302) {
-        const precursor = request2precursor(request.clone());
-        precursor.url = responsified.headers.location;
-        return await this.createResponse(precursor2request(precursor));
+        const location2 = responsified.headers.location;
+        return await this.createResponse(new Request(location2, request));
       }
+      console.debug(responsified);
       return new Response(body, init);
     }
     if (request.method === "HEAD" && request.url.startsWith("blob:")) {
@@ -13021,7 +13021,7 @@ var Responsify = class _Responsify {
   static async zip(zip) {
     return (await this.instance.messenger.request("zip", zip)).url;
   }
-  static async unzip(unzip, promptPassword = unzipPasswordPrompt) {
+  static async unzip(unzip, promptPassword = unzipPromptPassword) {
     let result = void 0;
     let isFirst = true;
     while (!result || result.passwordNeed) {
@@ -13042,7 +13042,7 @@ var Responsify = class _Responsify {
     return await this.instance.messenger.request("revoke", url);
   }
 };
-function unzipPasswordPrompt(isFirst) {
+function unzipPromptPassword(isFirst) {
   let password;
   if (isFirst) {
     password = prompt("This file is encrypted. Please enter the password.");
@@ -13050,7 +13050,7 @@ function unzipPasswordPrompt(isFirst) {
     password = prompt("The password does not match. Please check the password.");
   }
   if (!password) {
-    return unzipPasswordPrompt(false);
+    return unzipPromptPassword(false);
   }
   return password;
 }
