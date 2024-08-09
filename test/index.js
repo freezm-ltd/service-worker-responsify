@@ -621,7 +621,7 @@ var EventTarget22 = class extends EventTarget {
   }
 };
 
-// node_modules/.pnpm/@freezm-ltd+stream-utils@https+++codeload.github.com+freezm-ltd+stream-utils+tar.gz+88b45f973_govdwos32jnnhvrumdwejjspky/node_modules/@freezm-ltd/stream-utils/dist/index.js
+// node_modules/.pnpm/@freezm-ltd+stream-utils@https+++codeload.github.com+freezm-ltd+stream-utils+tar.gz+a473b0b30_sbvvak5cjnnizgjpb532pgj5sq/node_modules/@freezm-ltd/stream-utils/dist/index.js
 var EventTarget23 = class extends EventTarget {
   constructor() {
     super(...arguments);
@@ -748,6 +748,7 @@ function fitMetaStream(size, measurer, slicer) {
   const transform = new TransformStream();
   const tReadable = transform.readable;
   const tWriter = transform.writable.getWriter();
+  let tWriterClosed = void 0;
   const buffer = [];
   let written = 0;
   let writer;
@@ -778,10 +779,15 @@ function fitMetaStream(size, measurer, slicer) {
       }
       if (writer) await writer.close();
       controller.close();
+    },
+    cancel(reason) {
+      writer?.close();
+      tWriterClosed = String(reason);
     }
   });
   const writable = new WritableStream({
-    write(chunk) {
+    write(chunk, controller) {
+      if (tWriterClosed) return controller.error(tWriterClosed);
       tWriter.write(chunk);
     },
     close() {
@@ -12813,7 +12819,8 @@ var Responser = class _Responser extends EventTarget22 {
                 emitter.dispatch("cache-end", number);
                 if (entryCurrentStream[path].locked) entryCurrentStream[path].cancel("expired");
               }
-            }));
+            })).catch((e3) => {
+            });
           }
           const { readable, writable } = new TransformStream();
           const startNumber = Math.floor(range.start / UNZIP_CACHE_CHUNK_SIZE);

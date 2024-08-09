@@ -372,7 +372,9 @@ export class Responser extends EventTarget2 {
                                 emitter.dispatch("cache-end", number)
                                 if (entryCurrentStream[path].locked) entryCurrentStream[path].cancel("expired"); // for GC
                             }
-                        }))
+                        })).catch((e) => {
+                            // slient catch
+                        })
                     }
                     const { readable, writable } = new TransformStream()
                     const startNumber = Math.floor(range.start / UNZIP_CACHE_CHUNK_SIZE)
