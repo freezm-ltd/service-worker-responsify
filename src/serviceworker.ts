@@ -360,7 +360,7 @@ export class Responser extends EventTarget2 {
                                 if (!await caches.has(cacheKey)) { // if cache deleted
                                     const reason = "cache deleted"
                                     controller.error(reason)
-                                    stream.cancel(reason)
+                                    //stream.cancel(reason)
                                     return
                                 }
                                 number += 1

@@ -16,7 +16,7 @@ importers:
         version: https://codeload.github.com/freezm-ltd/post-together/tar.gz/483d5d71ba755bcbd6231e91217763d3685c50fd
       '@freezm-ltd/stream-utils':
         specifier: github:freezm-ltd/stream-utils
-        version: https://codeload.github.com/freezm-ltd/stream-utils/tar.gz/a473b0b3024ada03f523aed00aa9e8a11eb63355
+        version: https://codeload.github.com/freezm-ltd/stream-utils/tar.gz/677dafe5e79c58c142aade8a34e1d5947c1006a0
       '@zip.js/zip.js':
         specifier: ^2.7.48
         version: 2.7.48
@@ -191,8 +191,8 @@ packages:
     resolution: {tarball: https://codeload.github.com/freezm-ltd/post-together/tar.gz/483d5d71ba755bcbd6231e91217763d3685c50fd}
     version: 0.0.1
 
-  '@freezm-ltd/stream-utils@https://codeload.github.com/freezm-ltd/stream-utils/tar.gz/a473b0b3024ada03f523aed00aa9e8a11eb63355':
-    resolution: {tarball: https://codeload.github.com/freezm-ltd/stream-utils/tar.gz/a473b0b3024ada03f523aed00aa9e8a11eb63355}
+  '@freezm-ltd/stream-utils@https://codeload.github.com/freezm-ltd/stream-utils/tar.gz/677dafe5e79c58c142aade8a34e1d5947c1006a0':
+    resolution: {tarball: https://codeload.github.com/freezm-ltd/stream-utils/tar.gz/677dafe5e79c58c142aade8a34e1d5947c1006a0}
     version: 0.0.1
 
   '@types/serviceworker@0.0.89':
@@ -298,7 +298,7 @@ snapshots:
     dependencies:
       '@freezm-ltd/event-target-2': https://codeload.github.com/freezm-ltd/EventTarget2/tar.gz/11ff2085067d0ab323ed7474ffd8b03f770d6303
 
-  '@freezm-ltd/stream-utils@https://codeload.github.com/freezm-ltd/stream-utils/tar.gz/a473b0b3024ada03f523aed00aa9e8a11eb63355':
+  '@freezm-ltd/stream-utils@https://codeload.github.com/freezm-ltd/stream-utils/tar.gz/677dafe5e79c58c142aade8a34e1d5947c1006a0':
     dependencies:
       '@freezm-ltd/event-target-2': https://codeload.github.com/freezm-ltd/EventTarget2/tar.gz/11ff2085067d0ab323ed7474ffd8b03f770d6303
 
