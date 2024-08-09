@@ -12493,7 +12493,7 @@ var Responser = class _Responser extends EventTarget22 {
         const response = await messenger?.request("reserved", {
           id: uurl.id,
           precursor: request2precursor(request)
-        }, request.body ? [request.body] : void 0, -1);
+        }, request.body ? [request.body] : void 0, 5 * 60 * 1e3);
         return response || { reuse: true, status: 404 };
       });
       return uurl;
