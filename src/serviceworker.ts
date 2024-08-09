@@ -153,7 +153,8 @@ export class Responser extends EventTarget2 {
             const total = init.length || (lastPart.length ? lastPart.index + lastPart.length : undefined)
 
             this.storage.set(uurl.id, (request: Request) => {
-                const result: Responsified = init
+                const result: Responsified = structuredClone(init)
+                result.body = undefined
                 result.headers = result.headers || {}
                 result.headers["Accept-Ranges"] = "bytes"
 
@@ -471,7 +472,6 @@ export class Responser extends EventTarget2 {
                 const location = responsified.headers!.location!
                 return await this.createResponse(new Request(location, request))
             }
-            console.debug(responsified)
             return new Response(body, init)
         }
         if (request.method === "HEAD" && request.url.startsWith("blob:")) { // blob url HEAD request

@@ -12589,7 +12589,8 @@ var Responser = class _Responser extends EventTarget22 {
       const lastPart = parts[parts.length - 1];
       const total = init.length || (lastPart.length ? lastPart.index + lastPart.length : void 0);
       this.storage.set(uurl.id, (request) => {
-        const result = init;
+        const result = structuredClone(init);
+        result.body = void 0;
         result.headers = result.headers || {};
         result.headers["Accept-Ranges"] = "bytes";
         const precursors = [];
@@ -12875,7 +12876,6 @@ var Responser = class _Responser extends EventTarget22 {
         const location2 = responsified.headers.location;
         return await this.createResponse(new Request(location2, request));
       }
-      console.debug(responsified);
       return new Response(body, init);
     }
     if (request.method === "HEAD" && request.url.startsWith("blob:")) {

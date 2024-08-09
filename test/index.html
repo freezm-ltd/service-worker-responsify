@@ -76,6 +76,7 @@
                 console.log(await (await fetch(url, { headers: { Range: "bytes=-5" } })).arrayBuffer())
                 console.log(await (await fetch(url, { headers: { Range: "bytes=245-" } })).arrayBuffer())
                 console.log(await (await fetch(url, { headers: { Range: "bytes=7-42" } })).arrayBuffer())
+                console.log(await fetch(url, { method: "HEAD" }))
             },
             zip: async (url) => {
                 if (!url) {
