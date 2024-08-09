@@ -354,12 +354,13 @@ export class Responser extends EventTarget2 {
                         entryInit.set(path, emitter)
                         let number = entryCurrentNumber[path] = -1
                         const { readable, writable } = fitMetaByteStream(UNZIP_CACHE_CHUNK_SIZE)
-                        data.getData!(writable, { password, preventClose: true }).catch((e) => { console.debug("Entry.getData error:", e) })
+                        const abortController = new AbortController()
+                        data.getData!(writable, { password, preventClose: true, signal: abortController.signal }).catch((e) => { console.debug("Entry.getData error:", e) })
                         readable.pipeTo(new WritableStream({
-                            async write(stream, controller) {
+                            async write(stream) {
                                 if (!await caches.has(cacheKey)) { // if cache deleted
                                     const reason = "cache deleted"
-                                    controller.error(reason)
+                                    abortController.abort(reason)
                                     return
                                 }
                                 number += 1
@@ -371,11 +372,8 @@ export class Responser extends EventTarget2 {
                                 emitter.dispatch("cache-end", number)
                                 if (entryCurrentStream[path].locked) entryCurrentStream[path].cancel("expired"); // for GC
                             }
-                        })).catch(() => {
-                            // slient catch
-                        }).finally(() => {
-                            writable.close().catch(() => {/* slient catch */ })
-                        })
+                        }))
+                        writable.close()
                     }
                     const { readable, writable } = new TransformStream()
                     const startNumber = Math.floor(range.start / UNZIP_CACHE_CHUNK_SIZE)

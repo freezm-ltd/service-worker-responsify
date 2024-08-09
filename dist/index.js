@@ -12802,14 +12802,15 @@ var Responser = class _Responser extends EventTarget22 {
             entryInit.set(path, emitter);
             let number = entryCurrentNumber[path] = -1;
             const { readable: readable2, writable: writable2 } = fitMetaByteStream(UNZIP_CACHE_CHUNK_SIZE);
-            data.getData(writable2, { password, preventClose: true }).catch((e3) => {
+            const abortController = new AbortController();
+            data.getData(writable2, { password, preventClose: true, signal: abortController.signal }).catch((e3) => {
               console.debug("Entry.getData error:", e3);
             });
             readable2.pipeTo(new WritableStream({
-              async write(stream, controller) {
+              async write(stream) {
                 if (!await caches.has(cacheKey)) {
                   const reason = "cache deleted";
-                  controller.error(reason);
+                  abortController.abort(reason);
                   return;
                 }
                 number += 1;
@@ -12821,11 +12822,8 @@ var Responser = class _Responser extends EventTarget22 {
                 emitter.dispatch("cache-end", number);
                 if (entryCurrentStream[path].locked) entryCurrentStream[path].cancel("expired");
               }
-            })).catch(() => {
-            }).finally(() => {
-              writable2.close().catch(() => {
-              });
-            });
+            }));
+            writable2.close();
           }
           const { readable, writable } = new TransformStream();
           const startNumber = Math.floor(range.start / UNZIP_CACHE_CHUNK_SIZE);
