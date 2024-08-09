@@ -621,7 +621,7 @@ var EventTarget22 = class extends EventTarget {
   }
 };
 
-// node_modules/.pnpm/@freezm-ltd+stream-utils@https+++codeload.github.com+freezm-ltd+stream-utils+tar.gz+c58a36bb4_hrnheaymkmtuv7txepjluwmzdy/node_modules/@freezm-ltd/stream-utils/dist/index.js
+// node_modules/.pnpm/@freezm-ltd+stream-utils@https+++codeload.github.com+freezm-ltd+stream-utils+tar.gz+88b45f973_govdwos32jnnhvrumdwejjspky/node_modules/@freezm-ltd/stream-utils/dist/index.js
 var EventTarget23 = class extends EventTarget {
   constructor() {
     super(...arguments);
@@ -786,6 +786,9 @@ function fitMetaStream(size, measurer, slicer) {
     },
     close() {
       tWriter.close();
+    },
+    abort(reason) {
+      tWriter.abort(reason);
     }
   });
   return { readable, writable };
