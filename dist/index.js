@@ -12484,7 +12484,7 @@ var Responser = class _Responser extends EventTarget22 {
     this.address = /* @__PURE__ */ new WeakMap();
     this.storage = /* @__PURE__ */ new Map();
     this.messenger = MessengerFactory.new(self);
-    this.messenger.response("reserve", (_, e3) => {
+    this.messenger.response("reserve", (timeout, e3) => {
       const uurl = this.getUniqueURL();
       const client = e3.source;
       if (!this.address.has(client)) this.address.set(client, MessengerFactory.new(client));
@@ -12493,7 +12493,7 @@ var Responser = class _Responser extends EventTarget22 {
         const response = await messenger?.request("reserved", {
           id: uurl.id,
           precursor: request2precursor(request)
-        }, request.body ? [request.body] : void 0, 5 * 60 * 1e3);
+        }, request.body ? [request.body] : void 0, timeout);
         return response || { reuse: true, status: 404 };
       });
       return uurl;
@@ -12995,8 +12995,8 @@ var Responsify = class _Responsify {
     return this._instance;
   }
   // reserve (promised) window-created response and forward to service worker future
-  static async reserve(generator, reuse) {
-    const result = await this.instance.messenger.request("reserve", null);
+  static async reserve(generator, reuse, timeout = 5 * 60 * 1e3) {
+    const result = await this.instance.messenger.request("reserve", timeout);
     this.instance.reserved.set(result.id, async (request) => {
       if (!reuse) this.instance.reserved.delete(result.id);
       return responsify(await generator(request), { reuse });

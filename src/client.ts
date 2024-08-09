@@ -107,8 +107,8 @@ export class Responsify {
     }
 
     // reserve (promised) window-created response and forward to service worker future
-    static async reserve(generator: ResponsifiableGenerator, reuse: boolean): Promise<string> {
-        const result = await this.instance.messenger.request<null, ResponsifyResponse>("reserve", null)
+    static async reserve(generator: ResponsifiableGenerator, reuse: boolean, timeout = 5 * 60 * 1000): Promise<string> {
+        const result = await this.instance.messenger.request<number, ResponsifyResponse>("reserve", timeout)
         this.instance.reserved.set(result.id, async (request: Request) => {
             if (!reuse) this.instance.reserved.delete(result.id);
             return responsify(await generator(request), { reuse })

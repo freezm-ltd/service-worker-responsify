@@ -29,7 +29,7 @@ export class Responser extends EventTarget2 {
         this.messenger = MessengerFactory.new(self as ServiceWorkerGlobalScope)
 
         // reserve
-        this.messenger.response<null, ResponsifyResponse>("reserve", (_, e) => {
+        this.messenger.response<number, ResponsifyResponse>("reserve", (timeout, e) => {
             const uurl = this.getUniqueURL()
             const client = e.source as unknown as WindowClient
             if (!this.address.has(client)) this.address.set(client, MessengerFactory.new(client));
@@ -38,7 +38,7 @@ export class Responser extends EventTarget2 {
                 const response = await messenger?.request<ReservedRequest, Responsified>("reserved", {
                     id: uurl.id,
                     precursor: request2precursor(request)
-                }, request.body ? [request.body] : undefined, 5 * 60 * 1000) // wait for 5min
+                }, request.body ? [request.body] : undefined, timeout) // wait for timeout
                 return response || { reuse: true, status: 404 }
             })
             return uurl

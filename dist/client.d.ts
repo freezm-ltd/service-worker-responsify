@@ -76,7 +76,7 @@ export declare class Responsify {
     protected reserved: Map<string, (request: Request) => Promise<Responsified>>;
     protected constructor();
     protected static get instance(): Responsify;
-    static reserve(generator: ResponsifiableGenerator, reuse: boolean): Promise<string>;
+    static reserve(generator: ResponsifiableGenerator, reuse: boolean, timeout?: number): Promise<string>;
     static store(precursor: RequestPrecursorExtended): Promise<string>;
     static forward(responsified: Responsified): Promise<string>;
     static merge(merge: MergeRequest): Promise<string>;
