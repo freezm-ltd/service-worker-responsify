@@ -621,7 +621,7 @@ var EventTarget22 = class extends EventTarget {
   }
 };
 
-// node_modules/.pnpm/@freezm-ltd+stream-utils@https+++codeload.github.com+freezm-ltd+stream-utils+tar.gz+c5447adf9_pwgx7hut67qs4fwyck2ib5vyni/node_modules/@freezm-ltd/stream-utils/dist/index.js
+// node_modules/.pnpm/@freezm-ltd+stream-utils@https+++codeload.github.com+freezm-ltd+stream-utils+tar.gz+be8e4bc22_3r3hus5o333rt6cz2267kbff7a/node_modules/@freezm-ltd/stream-utils/dist/index.js
 var EventTarget23 = class extends EventTarget {
   constructor() {
     super(...arguments);
@@ -848,9 +848,8 @@ function mergeStream(generators, context, option) {
       if (!buffer[index]) await emitter.waitFor("load", index);
       let errored = false;
       await buffer[index].pipeTo(writable, { preventClose: true }).catch((e3) => {
-        Object.values(buffer).forEach((stream) => stream.cancel(e3).catch(
-          /* silent catch */
-        ));
+        Object.values(buffer).forEach((stream) => stream.cancel(e3).catch(() => {
+        }));
         console.debug("mergeStream error:", e3);
         errored = true;
       });
@@ -858,9 +857,8 @@ function mergeStream(generators, context, option) {
       emitter.dispatch("next", index + parallel);
       index++;
     }
-    writable.close().catch(
-      /* silent catch */
-    );
+    writable.close().catch(() => {
+    });
     emitter.destroy();
   };
   task();
@@ -12823,9 +12821,8 @@ var Responser = class _Responser extends EventTarget22 {
               }
             })).catch((e3) => {
             }).finally(() => {
-              writable2.close().catch(
-                /* slient catch */
-              );
+              writable2.close().catch(() => {
+              });
             });
           }
           const { readable, writable } = new TransformStream();
