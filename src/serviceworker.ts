@@ -38,7 +38,7 @@ export class Responser extends EventTarget2 {
                 const response = await messenger?.request<ReservedRequest, Responsified>("reserved", {
                     id: uurl.id,
                     precursor: request2precursor(request)
-                }, request.body ? [request.body] : undefined)
+                }, request.body ? [request.body] : undefined, 5 * 60 * 1000) // wait for 5min
                 return response || { reuse: true, status: 404 }
             })
             return uurl

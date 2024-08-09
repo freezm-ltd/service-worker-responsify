@@ -1,4 +1,4 @@
-// node_modules/.pnpm/@freezm-ltd+post-together@https+++codeload.github.com+freezm-ltd+post-together+tar.gz+d1be158_woiexn7dcpu22ggapp2ogzvum4/node_modules/@freezm-ltd/post-together/dist/index.js
+// node_modules/.pnpm/@freezm-ltd+post-together@https+++codeload.github.com+freezm-ltd+post-together+tar.gz+483d5d7_5jhmvypwiqilohd4avukpezvpa/node_modules/@freezm-ltd/post-together/dist/index.js
 var EventTarget2 = class extends EventTarget {
   constructor() {
     super(...arguments);
@@ -190,10 +190,12 @@ var Messenger = class {
       const message = this.createRequest(type, payload, transfer);
       const rejector = this.responseCallback(message, resolve);
       await this._send(message);
-      setTimeout(() => {
-        rejector();
-        reject(`MessengerRequestTimeoutError: request timeout reached: ${timeout}ms`);
-      }, timeout);
+      if (timeout > 0) {
+        setTimeout(() => {
+          rejector();
+          reject(`MessengerRequestTimeoutError: request timeout reached: ${timeout}ms`);
+        }, timeout);
+      }
     });
   }
   wrapMessageHandler(type, handler) {
@@ -12491,7 +12493,7 @@ var Responser = class _Responser extends EventTarget22 {
         const response = await messenger?.request("reserved", {
           id: uurl.id,
           precursor: request2precursor(request)
-        }, request.body ? [request.body] : void 0);
+        }, request.body ? [request.body] : void 0, -1);
         return response || { reuse: true, status: 404 };
       });
       return uurl;
