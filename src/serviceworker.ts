@@ -365,6 +365,7 @@ export class Responser extends EventTarget2 {
                                 entryCurrentStream[path] = stream1
                                 entryCurrentNumber[path] = number
                                 if (!await caches.has(cacheKey) && reading <= 0) { // if cache deleted and no one reading
+                                    console.debug({ status: "forced read", reading })
                                     const reason = "cache deleted"
                                     controller.error(reason)
                                     stream.cancel(reason)
@@ -385,6 +386,7 @@ export class Responser extends EventTarget2 {
                     const cycle = async () => {
                         let errored = false
                         reading++ // add reading marker
+                        console.debug({ status: "read++", reading })
                         for (let i = startNumber; i <= endNumber; i++) {
                             let source: ReadableStream<Uint8Array>
                             if (entryCurrentNumber[path] > i) {
@@ -415,6 +417,7 @@ export class Responser extends EventTarget2 {
                         }
                         await writable.close()
                         reading-- // delete reading marker
+                        console.debug({ status: "read--", reading, errored })
                     }
                     cycle()
                     result.body = readable

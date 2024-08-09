@@ -12801,6 +12801,7 @@ var Responser = class _Responser extends EventTarget22 {
                 entryCurrentStream[path] = stream1;
                 entryCurrentNumber[path] = number;
                 if (!await caches.has(cacheKey) && reading <= 0) {
+                  console.debug({ status: "forced read", reading });
                   const reason = "cache deleted";
                   controller.error(reason);
                   stream.cancel(reason);
@@ -12821,6 +12822,7 @@ var Responser = class _Responser extends EventTarget22 {
           const cycle = async () => {
             let errored = false;
             reading++;
+            console.debug({ status: "read++", reading });
             for (let i2 = startNumber; i2 <= endNumber; i2++) {
               let source;
               if (entryCurrentNumber[path] > i2) {
@@ -12849,6 +12851,7 @@ var Responser = class _Responser extends EventTarget22 {
             }
             await writable.close();
             reading--;
+            console.debug({ status: "read--", reading, errored });
           };
           cycle();
           result.body = readable;
