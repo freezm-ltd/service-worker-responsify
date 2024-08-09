@@ -346,7 +346,8 @@ export class Responser extends EventTarget2 {
                     const offset = entryDataOffset.get(path)!
                     result.body = (await this.createResponseFromPrecursor(precursor, range.start + offset, range.end - range.start + 1)).body!
                 } else { // unseekable, cacheStorage need
-                    const cache = await caches.open(`${UNZIP_CACHE_NAME}:${unzipId}`)
+                    const cacheKey = `${UNZIP_CACHE_NAME}:${unzipId}`
+                    const cache = await caches.open(cacheKey)
                     const scheme = `/${path}`
                     const emitter = entryInit.get(path) || new EventTarget2()
                     if (!entryInit.has(path)) {
@@ -355,11 +356,17 @@ export class Responser extends EventTarget2 {
                         const { readable, writable } = fitMetaByteStream(UNZIP_CACHE_CHUNK_SIZE)
                         data.getData!(writable, { password })
                         readable.pipeTo(new WritableStream({
-                            async write(stream) {
+                            async write(stream, controller) {
                                 number += 1
                                 const [stream1, stream2] = stream.tee()
                                 entryCurrentStream[path] = stream1
                                 entryCurrentNumber[path] = number
+                                if (!await caches.has(cacheKey)) { // if cache deleted
+                                    const reason = "cache deleted"
+                                    controller.error(reason)
+                                    stream.cancel(reason)
+                                    return
+                                }
                                 emitter.dispatch("cache-start", number)
                                 await cache.put(`${scheme}:${number}`, new Response(stream2))
                                 emitter.dispatch("cache-end", number)

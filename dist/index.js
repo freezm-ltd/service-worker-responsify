@@ -12784,7 +12784,8 @@ var Responser = class _Responser extends EventTarget22 {
           const offset = entryDataOffset.get(path);
           result.body = (await this.createResponseFromPrecursor(precursor, range.start + offset, range.end - range.start + 1)).body;
         } else {
-          const cache = await caches.open(`${UNZIP_CACHE_NAME}:${unzipId}`);
+          const cacheKey = `${UNZIP_CACHE_NAME}:${unzipId}`;
+          const cache = await caches.open(cacheKey);
           const scheme = `/${path}`;
           const emitter = entryInit.get(path) || new EventTarget22();
           if (!entryInit.has(path)) {
@@ -12793,11 +12794,17 @@ var Responser = class _Responser extends EventTarget22 {
             const { readable: readable2, writable: writable2 } = fitMetaByteStream(UNZIP_CACHE_CHUNK_SIZE);
             data.getData(writable2, { password });
             readable2.pipeTo(new WritableStream({
-              async write(stream) {
+              async write(stream, controller) {
                 number += 1;
                 const [stream1, stream2] = stream.tee();
                 entryCurrentStream[path] = stream1;
                 entryCurrentNumber[path] = number;
+                if (!await caches.has(cacheKey)) {
+                  const reason = "cache deleted";
+                  controller.error(reason);
+                  stream.cancel(reason);
+                  return;
+                }
                 emitter.dispatch("cache-start", number);
                 await cache.put(`${scheme}:${number}`, new Response(stream2));
                 emitter.dispatch("cache-end", number);
