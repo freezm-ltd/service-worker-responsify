@@ -621,7 +621,7 @@ var EventTarget22 = class extends EventTarget {
   }
 };
 
-// node_modules/.pnpm/@freezm-ltd+stream-utils@https+++codeload.github.com+freezm-ltd+stream-utils+tar.gz+677dafe5e_ea55nrwjcfjzadzcn6axvbja6m/node_modules/@freezm-ltd/stream-utils/dist/index.js
+// node_modules/.pnpm/@freezm-ltd+stream-utils@https+++codeload.github.com+freezm-ltd+stream-utils+tar.gz+b3ba95f66_63om2g4ocnzeoijjyrux3i6jxi/node_modules/@freezm-ltd/stream-utils/dist/index.js
 var EventTarget23 = class extends EventTarget {
   constructor() {
     super(...arguments);
@@ -846,12 +846,15 @@ function mergeStream(generators, context, option) {
     let index = 0;
     while (index < generators.length) {
       if (!buffer[index]) await emitter.waitFor("load", index);
+      let errored = false;
       await buffer[index].pipeTo(writable, { preventClose: true }).catch((e3) => {
         Object.values(buffer).forEach((stream) => stream.cancel(e3).catch(
           /* silent catch */
         ));
-        console.log("mergeStream error:", e3);
+        console.debug("mergeStream error:", e3);
+        errored = true;
       });
+      if (errored) break;
       emitter.dispatch("next", index + parallel);
       index++;
     }
