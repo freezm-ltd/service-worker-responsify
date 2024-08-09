@@ -360,6 +360,7 @@ export class Responser extends EventTarget2 {
                             async write(stream) {
                                 if (!await caches.has(cacheKey)) { // if cache deleted
                                     const reason = "cache deleted"
+                                    for (let key of await cache.keys()) await cache.delete(key); // clear detached cache
                                     abortController.abort(reason)
                                     return
                                 }

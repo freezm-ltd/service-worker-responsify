@@ -12810,6 +12810,7 @@ var Responser = class _Responser extends EventTarget22 {
               async write(stream) {
                 if (!await caches.has(cacheKey)) {
                   const reason = "cache deleted";
+                  for (let key of await cache.keys()) await cache.delete(key);
                   abortController.abort(reason);
                   return;
                 }
