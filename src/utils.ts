@@ -18,6 +18,40 @@ export async function isStreamTrnasferable() {
     }
 }
 
+export const clean = (path: string) => {
+	// resolve . and .., and remove trailing /
+	const parts = path.split("/");
+	const stack = [];
+	for (const part of parts) {
+		if (part === "..") {
+			stack.pop();
+		} else if (part !== ".") {
+			stack.push(part);
+		}
+
+		// remove trailing /
+		if (stack.length > 1 && stack[stack.length - 1] === "") {
+			stack.pop();
+		}
+	}
+
+	return stack.join("/");
+};
+
+export const base = (path: string) => {
+	const cleaned = clean(path);
+	return cleaned.substring(cleaned.lastIndexOf("/") + 1);
+};
+
+export function getDownloadHeader(name: string): Record<string, string> {
+	const newname = encodeURIComponent(name.replace(/\//g, ":")).replace(/['()]/g, escape).replace(/\*/g, "%2A");
+
+	return {
+		"Content-Type": "application/octet-stream; charset=utf-8",
+		"Content-Disposition": "attachment; filename*=UTF-8''" + newname
+	};
+}
+
 export function base64URLencode(str: string) {
 	return btoa(
 		encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, function (match, p1) {

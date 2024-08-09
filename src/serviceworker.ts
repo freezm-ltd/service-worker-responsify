@@ -5,7 +5,7 @@ import { fitMetaByteStream, lengthCallback, mergeStream, sliceByteStream } from 
 import { makeZip, predictLength } from "client-zip"
 import { Entry, EntryMetaData, fs, ZipEntry } from "@zip.js/zip.js"
 import { getUint16LE, ResponsifiedReader } from "./zip"
-import { base64URLdecode, base64URLencode } from "./utils"
+import { base, base64URLdecode, base64URLencode, getDownloadHeader } from "./utils"
 
 function createId() {
     return crypto.randomUUID()
@@ -250,11 +250,7 @@ export class Responser extends EventTarget2 {
                 } catch { }
             }
             this.storage.set(uurl.id, (request) => { // zipping files
-                const newname = encodeURIComponent(name.replace(/\//g, ":")).replace(/['()]/g, escape).replace(/\*/g, "%2A");
-                const headers: Record<string, string> = {
-                    "Content-Type": "application/octet-stream; charset=utf-8",
-                    "Content-Disposition": "attachment; filename*=UTF-8''" + newname
-                };
+                const headers = getDownloadHeader(name)
                 if (size > 0n) headers["Content-Length"] = size.toString();
                 const result: Responsified = { reuse, headers }
                 if (request.method === "GET") { // GET request, add body
@@ -327,6 +323,7 @@ export class Responser extends EventTarget2 {
                         reuse: true
                     }
                 }
+
                 const result: Responsified = {
                     reuse: true,
                     headers: {
@@ -336,6 +333,8 @@ export class Responser extends EventTarget2 {
                     },
                     status: isRanged ? 206 : 200
                 }
+                Object.assign(result.headers!, getDownloadHeader(base(data.filename)))
+
                 if (request.method === "HEAD") { // HEAD request, no body
                     return result
                 }

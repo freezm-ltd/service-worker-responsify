@@ -1093,7 +1093,7 @@ function Tree() {
     const tree = that.dyn_tree;
     const stree = that.stat_desc.static_tree;
     const extra = that.stat_desc.extra_bits;
-    const base = that.stat_desc.extra_base;
+    const base2 = that.stat_desc.extra_base;
     const max_length = that.stat_desc.max_length;
     let h2;
     let n2, m;
@@ -1116,8 +1116,8 @@ function Tree() {
         continue;
       s2.bl_count[bits]++;
       xbits = 0;
-      if (n2 >= base)
-        xbits = extra[n2 - base];
+      if (n2 >= base2)
+        xbits = extra[n2 - base2];
       f2 = tree[n2 * 2];
       s2.opt_len += f2 * (bits + xbits);
       if (stree)
@@ -12446,6 +12446,32 @@ function getUint16LE(uint8View, offset) {
 }
 
 // src/utils.ts
+var clean = (path) => {
+  const parts = path.split("/");
+  const stack = [];
+  for (const part of parts) {
+    if (part === "..") {
+      stack.pop();
+    } else if (part !== ".") {
+      stack.push(part);
+    }
+    if (stack.length > 1 && stack[stack.length - 1] === "") {
+      stack.pop();
+    }
+  }
+  return stack.join("/");
+};
+var base = (path) => {
+  const cleaned = clean(path);
+  return cleaned.substring(cleaned.lastIndexOf("/") + 1);
+};
+function getDownloadHeader(name) {
+  const newname = encodeURIComponent(name.replace(/\//g, ":")).replace(/['()]/g, escape).replace(/\*/g, "%2A");
+  return {
+    "Content-Type": "application/octet-stream; charset=utf-8",
+    "Content-Disposition": "attachment; filename*=UTF-8''" + newname
+  };
+}
 function base64URLencode(str) {
   return btoa(
     encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, function(match, p1) {
@@ -12672,11 +12698,7 @@ var Responser = class _Responser extends EventTarget22 {
         }
       }
       this.storage.set(uurl.id, (request) => {
-        const newname = encodeURIComponent(name.replace(/\//g, ":")).replace(/['()]/g, escape).replace(/\*/g, "%2A");
-        const headers = {
-          "Content-Type": "application/octet-stream; charset=utf-8",
-          "Content-Disposition": "attachment; filename*=UTF-8''" + newname
-        };
+        const headers = getDownloadHeader(name);
         if (size > 0n) headers["Content-Length"] = size.toString();
         const result = { reuse, headers };
         if (request.method === "GET") {
@@ -12750,6 +12772,7 @@ var Responser = class _Responser extends EventTarget22 {
           },
           status: isRanged ? 206 : 200
         };
+        Object.assign(result.headers, getDownloadHeader(base(data.filename)));
         if (request.method === "HEAD") {
           return result;
         }
