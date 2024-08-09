@@ -354,7 +354,7 @@ export class Responser extends EventTarget2 {
                         entryInit.set(path, emitter)
                         let number = entryCurrentNumber[path] = -1
                         const { readable, writable } = fitMetaByteStream(UNZIP_CACHE_CHUNK_SIZE)
-                        data.getData!(writable, { password, preventClose: true })
+                        data.getData!(writable, { password, preventClose: true }).catch((e) => { console.debug("Entry.getData error:", e) })
                         readable.pipeTo(new WritableStream({
                             async write(stream, controller) {
                                 if (!await caches.has(cacheKey)) { // if cache deleted
@@ -372,7 +372,7 @@ export class Responser extends EventTarget2 {
                                 emitter.dispatch("cache-end", number)
                                 if (entryCurrentStream[path].locked) entryCurrentStream[path].cancel("expired"); // for GC
                             }
-                        })).catch((e) => {
+                        })).catch(() => {
                             // slient catch
                         }).finally(() => {
                             writable.close().catch(() => {/* slient catch */})
