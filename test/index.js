@@ -621,7 +621,7 @@ var EventTarget22 = class extends EventTarget {
   }
 };
 
-// node_modules/.pnpm/@freezm-ltd+stream-utils@https+++codeload.github.com+freezm-ltd+stream-utils+tar.gz+b3ba95f66_63om2g4ocnzeoijjyrux3i6jxi/node_modules/@freezm-ltd/stream-utils/dist/index.js
+// node_modules/.pnpm/@freezm-ltd+stream-utils@https+++codeload.github.com+freezm-ltd+stream-utils+tar.gz+c5447adf9_pwgx7hut67qs4fwyck2ib5vyni/node_modules/@freezm-ltd/stream-utils/dist/index.js
 var EventTarget23 = class extends EventTarget {
   constructor() {
     super(...arguments);
@@ -858,7 +858,9 @@ function mergeStream(generators, context, option) {
       emitter.dispatch("next", index + parallel);
       index++;
     }
-    await writable.close();
+    writable.close().catch(
+      /* silent catch */
+    );
     emitter.destroy();
   };
   task();
@@ -12802,7 +12804,7 @@ var Responser = class _Responser extends EventTarget22 {
             entryInit.set(path, emitter);
             let number = entryCurrentNumber[path] = -1;
             const { readable: readable2, writable: writable2 } = fitMetaByteStream(UNZIP_CACHE_CHUNK_SIZE);
-            data.getData(writable2, { password });
+            data.getData(writable2, { password, preventClose: true });
             readable2.pipeTo(new WritableStream({
               async write(stream, controller) {
                 if (!await caches.has(cacheKey)) {
@@ -12820,6 +12822,10 @@ var Responser = class _Responser extends EventTarget22 {
                 if (entryCurrentStream[path].locked) entryCurrentStream[path].cancel("expired");
               }
             })).catch((e3) => {
+            }).finally(() => {
+              writable2.close().catch(
+                /* slient catch */
+              );
             });
           }
           const { readable, writable } = new TransformStream();

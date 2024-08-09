@@ -354,7 +354,7 @@ export class Responser extends EventTarget2 {
                         entryInit.set(path, emitter)
                         let number = entryCurrentNumber[path] = -1
                         const { readable, writable } = fitMetaByteStream(UNZIP_CACHE_CHUNK_SIZE)
-                        data.getData!(writable, { password })
+                        data.getData!(writable, { password, preventClose: true })
                         readable.pipeTo(new WritableStream({
                             async write(stream, controller) {
                                 if (!await caches.has(cacheKey)) { // if cache deleted
@@ -374,6 +374,8 @@ export class Responser extends EventTarget2 {
                             }
                         })).catch((e) => {
                             // slient catch
+                        }).finally(() => {
+                            writable.close().catch(/* slient catch */)
                         })
                     }
                     const { readable, writable } = new TransformStream()
