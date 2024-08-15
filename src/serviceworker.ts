@@ -3,7 +3,7 @@ import { EntryMetadataHttp, MergeRequest, PartRequest, precursor2request, reques
 import { EventTarget2 } from "@freezm-ltd/event-target-2"
 import { fitMetaByteStream, lengthCallback, mergeStream, sliceByteStream } from "@freezm-ltd/stream-utils"
 import { makeZip, predictLength } from "client-zip"
-import { Entry, EntryMetaData, fs, ZipEntry } from "@zip.js/zip.js"
+import type { Entry, ZipEntry } from "@zip.js/zip.js"
 import { getUint16LE, ResponsifiedReader } from "./zip"
 import { base, base64URLdecode, base64URLencode, getDownloadHeader, mergeSignal } from "./utils"
 
@@ -274,7 +274,8 @@ export class Responser extends EventTarget2 {
             const entryInit: Map<string, EventTarget2> = new Map()
             const entryCurrentStream: Record<string, ReadableStream<Uint8Array>> = {}
             const entryCurrentNumber: Record<string, number> = {}
-            const entries = await new fs.FS().importZip(new ResponsifiedReader(this, precursor))
+            const zip = await import("@zip.js/zip.js")
+            const entries = await new zip.fs.FS().importZip(new ResponsifiedReader(this, precursor))
 
             for (let entry of entries) { //
                 if (!entry.data || entry.data.directory) continue;
