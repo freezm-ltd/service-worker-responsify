@@ -12523,6 +12523,12 @@ var DEC = {
   "_": "/",
   ".": "="
 };
+function mergeSignal(signal1, signal2) {
+  const controller = new AbortController();
+  signal1.onabort = (e3) => controller.abort(e3.target.reason);
+  signal2.onabort = (e3) => controller.abort(e3.target.reason);
+  return controller.signal;
+}
 
 // src/serviceworker.ts
 function createId() {
@@ -12730,7 +12736,7 @@ var Responser = class _Responser extends EventTarget22 {
         if (size > 0n) headers["Content-Length"] = size.toString();
         const result = { reuse, headers };
         if (request.method === "GET") {
-          result.body = N(this.zipSource(zip.entries), { buffersAreUTF8: true });
+          result.body = N(this.zipSource(zip.entries, request.signal), { buffersAreUTF8: true });
         }
         return result;
       });
@@ -12975,15 +12981,15 @@ var Responser = class _Responser extends EventTarget22 {
       url: `${location.origin}${this.path}?id=${id}`
     };
   }
-  async *zipSource(entries) {
+  async *zipSource(entries, signal) {
     const controller = new AbortController();
-    const { signal } = controller;
+    const mergedSignal = signal ? mergeSignal(controller.signal, signal) : controller.signal;
     const promises = entries.map((entry) => {
       return async () => {
         return {
           name: entry.name,
           size: entry.size,
-          input: (await this.createResponse(precursor2request(entry.request, { signal }))).body
+          input: (await this.createResponse(precursor2request(entry.request, { signal: mergedSignal }))).body
         };
       };
     });

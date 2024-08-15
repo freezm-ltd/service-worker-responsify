@@ -5,7 +5,7 @@ import { fitMetaByteStream, lengthCallback, mergeStream, sliceByteStream } from 
 import { makeZip, predictLength } from "client-zip"
 import { Entry, EntryMetaData, fs, ZipEntry } from "@zip.js/zip.js"
 import { getUint16LE, ResponsifiedReader } from "./zip"
-import { base, base64URLdecode, base64URLencode, getDownloadHeader } from "./utils"
+import { base, base64URLdecode, base64URLencode, getDownloadHeader, mergeSignal } from "./utils"
 
 function createId() {
     return crypto.randomUUID()
@@ -254,7 +254,7 @@ export class Responser extends EventTarget2 {
                 if (size > 0n) headers["Content-Length"] = size.toString();
                 const result: Responsified = { reuse, headers }
                 if (request.method === "GET") { // GET request, add body
-                    result.body = makeZip(this.zipSource(zip.entries), { buffersAreUTF8: true })
+                    result.body = makeZip(this.zipSource(zip.entries, request.signal), { buffersAreUTF8: true })
                 }
                 return result
             })
@@ -519,15 +519,15 @@ export class Responser extends EventTarget2 {
         }
     }
 
-    async* zipSource(entries: Array<ZipEntryRequest>) {
+    async* zipSource(entries: Array<ZipEntryRequest>, signal?: AbortSignal) {
         const controller = new AbortController();
-        const { signal } = controller;
+        const mergedSignal = signal ? mergeSignal(controller.signal, signal) : controller.signal;
         const promises = entries.map((entry) => {
             return async () => {
                 return {
                     name: entry.name,
                     size: entry.size,
-                    input: (await this.createResponse(precursor2request(entry.request, { signal }))).body!
+                    input: (await this.createResponse(precursor2request(entry.request, { signal: mergedSignal }))).body!
                 };
             };
         });

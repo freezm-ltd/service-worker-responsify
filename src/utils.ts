@@ -79,3 +79,10 @@ const DEC: any = {
     '_': '/',
     '.': '='
 }
+
+export function mergeSignal(signal1: AbortSignal, signal2: AbortSignal) {
+	const controller = new AbortController()
+	signal1.onabort = (e) => controller.abort((e.target as AbortSignal).reason)
+	signal2.onabort = (e) => controller.abort((e.target as AbortSignal).reason)
+	return controller.signal
+}
