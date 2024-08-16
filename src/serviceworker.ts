@@ -1,9 +1,9 @@
 import { Messenger, MessengerFactory } from "@freezm-ltd/post-together"
-import { EntryMetadataHttp, MergeRequest, PartRequest, precursor2request, request2precursor, RequestPrecursor, RequestPrecursorExtended, RequestPrecursorWithStream, ReservedRequest, Responsified, responsify, ResponsifyResponse, UnzipRequest, UnzipResponse, ZipEntryRequest, ZipRequest } from "./client"
+import { EntryMetadataHttp, MergeRequest, precursor2request, request2precursor, RequestPrecursor, RequestPrecursorExtended, RequestPrecursorWithStream, ReservedRequest, Responsified, responsify, ResponsifyResponse, UnzipRequest, UnzipResponse, ZipEntryRequest, ZipRequest } from "./client"
 import { EventTarget2 } from "@freezm-ltd/event-target-2"
-import { fitMetaByteStream, lengthCallback, mergeStream, sliceByteStream } from "@freezm-ltd/stream-utils"
+import { fitMetaByteStream, mergeStream, sliceByteStream } from "@freezm-ltd/stream-utils"
 import { makeZip, predictLength } from "client-zip"
-import type { Entry, ZipEntry } from "@zip.js/zip.js"
+import { Entry, ZipEntry } from "@zip.js/zip.js"
 import { getUint16LE, ResponsifiedReader } from "./zip"
 import { base, base64URLdecode, base64URLencode, getDownloadHeader, mergeSignal } from "./utils"
 
@@ -274,7 +274,7 @@ export class Responser extends EventTarget2 {
             const entryInit: Map<string, EventTarget2> = new Map()
             const entryCurrentStream: Record<string, ReadableStream<Uint8Array>> = {}
             const entryCurrentNumber: Record<string, number> = {}
-            const zip = await import("@zip.js/zip.js")
+            const zip = require("@zip.js/zip.js")
             const entries = await new zip.fs.FS().importZip(new ResponsifiedReader(this, precursor))
 
             for (let entry of entries) { //
