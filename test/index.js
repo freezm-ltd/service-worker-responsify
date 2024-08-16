@@ -12627,7 +12627,7 @@ var base = (path) => {
 function getDownloadHeader(name) {
   const newname = encodeURIComponent(name.replace(/\//g, ":")).replace(/['()]/g, escape).replace(/\*/g, "%2A");
   return {
-    "Content-Type": "application/octet-stream; charset=utf-8",
+    "Content-Type": "application/octet-stream",
     "Content-Disposition": "attachment; filename*=UTF-8''" + newname
   };
 }
