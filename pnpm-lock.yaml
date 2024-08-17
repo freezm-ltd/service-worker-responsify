@@ -17,6 +17,9 @@ importers:
       '@freezm-ltd/stream-utils':
         specifier: github:freezm-ltd/stream-utils
         version: https://codeload.github.com/freezm-ltd/stream-utils/tar.gz/1b78250cc4726d9779b9f3ab859c7ce93de566a6
+      '@ungap/structured-clone':
+        specifier: ^1.2.0
+        version: 1.2.0
       '@zip.js/zip.js':
         specifier: ^2.7.48
         version: 2.7.48
@@ -27,6 +30,9 @@ importers:
       '@types/serviceworker':
         specifier: ^0.0.89
         version: 0.0.89
+      '@types/ungap__structured-clone':
+        specifier: ^1.2.0
+        version: 1.2.0
       esbuild:
         specifier: ^0.23.0
         version: 0.23.0
@@ -198,6 +204,12 @@ packages:
   '@types/serviceworker@0.0.89':
     resolution: {integrity: sha512-m5C1oHqOeFemS026Mx19vYWbkygiDcKqHsd33dIgLDgfTlowHawZFIGzHmSbx7o5t57dTjaJcMxB8lpWXfkiBQ==}
 
+  '@types/ungap__structured-clone@1.2.0':
+    resolution: {integrity: sha512-ZoaihZNLeZSxESbk9PUAPZOlSpcKx81I1+4emtULDVmBLkYutTcMlCj2K9VNlf9EWODxdO6gkAqEaLorXwZQVA==}
+
+  '@ungap/structured-clone@1.2.0':
+    resolution: {integrity: sha512-zuVdFrMJiuCDQUMCzQaD6KL28MjnqqN8XnAqiEq9PNm/hCPTSGfrXCOfwj1ow4LFb/tNymJPwsNbVePc1xFqrQ==}
+
   '@zip.js/zip.js@2.7.48':
     resolution: {integrity: sha512-J7cliimZ2snAbr0IhLx2U8BwfA1pKucahKzTpFtYq4hEgKxwvFJcIjCIVNPwQpfVab7iVP+AKmoH1gidBlyhiQ==}
     engines: {bun: '>=0.7.0', deno: '>=1.0.0', node: '>=16.5.0'}
@@ -303,6 +315,10 @@ snapshots:
       '@freezm-ltd/event-target-2': https://codeload.github.com/freezm-ltd/EventTarget2/tar.gz/94919e17995c55d3e5857af7c8831ca204ce9230
 
   '@types/serviceworker@0.0.89': {}
+
+  '@types/ungap__structured-clone@1.2.0': {}
+
+  '@ungap/structured-clone@1.2.0': {}
 
   '@zip.js/zip.js@2.7.48': {}
 

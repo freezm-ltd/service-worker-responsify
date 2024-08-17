@@ -1,21 +1,23 @@
+import structuredClone from '@ungap/structured-clone';
+
 export async function isStreamTrnasferable() {
-    try {
-        const { readable, writable } = new TransformStream()
-        writable.close()
-        switch (globalThis.constructor) {
-            case globalThis.ServiceWorkerGlobalScope: {
-                (await self.clients.matchAll())[0].postMessage({ readable, writable }, { transfer: [readable, writable] })
-                break
-            }
-            case globalThis.Window: {
-                postMessage({ readable, writable }, { transfer: [readable, writable] })
-                break
-            }
-        }
-        return true
-    } catch {
-        return false
-    }
+	try {
+		const { readable, writable } = new TransformStream()
+		writable.close()
+		switch (globalThis.constructor) {
+			case globalThis.ServiceWorkerGlobalScope: {
+				(await self.clients.matchAll())[0].postMessage({ readable, writable }, { transfer: [readable, writable] })
+				break
+			}
+			case globalThis.Window: {
+				postMessage({ readable, writable }, { transfer: [readable, writable] })
+				break
+			}
+		}
+		return true
+	} catch {
+		return false
+	}
 }
 
 export const clean = (path: string) => {
@@ -71,13 +73,13 @@ export function base64URLdecode(str: string) {
 }
 
 const ENC: any = {
-    '+': '-',
-    '/': '_'
+	'+': '-',
+	'/': '_'
 }
 const DEC: any = {
-    '-': '+',
-    '_': '/',
-    '.': '='
+	'-': '+',
+	'_': '/',
+	'.': '='
 }
 
 export function mergeSignal(signal1: AbortSignal, signal2: AbortSignal) {
@@ -86,3 +88,5 @@ export function mergeSignal(signal1: AbortSignal, signal2: AbortSignal) {
 	signal2.onabort = (e) => controller.abort((e.target as AbortSignal).reason)
 	return controller.signal
 }
+
+export const structuredClonePolyfill = globalThis.structuredClone || structuredClone

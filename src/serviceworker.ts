@@ -5,7 +5,7 @@ import { fitMetaByteStream, mergeStream, sliceByteStream } from "@freezm-ltd/str
 import { makeZip, predictLength } from "client-zip"
 import { Entry, ZipEntry } from "@zip.js/zip.js"
 import { getUint16LE, ResponsifiedReader } from "./zip"
-import { base, base64URLdecode, base64URLencode, getDownloadHeader, mergeSignal } from "./utils"
+import { base, base64URLdecode, base64URLencode, getDownloadHeader, mergeSignal, structuredClonePolyfill } from "./utils"
 
 function createId() {
     return crypto.randomUUID()
@@ -153,7 +153,7 @@ export class Responser extends EventTarget2 {
             const total = init.length || (lastPart.length ? lastPart.index + lastPart.length : undefined)
 
             this.storage.set(uurl.id, (request: Request) => {
-                const result: Responsified = structuredClone(init)
+                const result: Responsified = structuredClonePolyfill(init)
                 result.body = undefined
                 result.headers = result.headers || {}
                 result.headers["Accept-Ranges"] = "bytes"
@@ -175,7 +175,7 @@ export class Responser extends EventTarget2 {
                             continue
                         }
 
-                        const part = structuredClone(parts[i].request)
+                        const part = structuredClonePolyfill(parts[i].request)
                         let range = ""
 
                         if (start <= p1 && p2 <= end) { // --<--[==]-->--  ;  [==]
