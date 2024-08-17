@@ -89,7 +89,7 @@ export class Responser extends EventTarget2 {
                             responsified.body = stream1
                             result.body = stream2
                         } else {
-                            result.body = structuredClone(responsified.body)
+                            result.body = structuredClonePolyfill(responsified.body)
                         }
                     } else {
                         result.body = responsified.body
