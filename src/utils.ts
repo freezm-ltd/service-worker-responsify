@@ -89,4 +89,6 @@ export function mergeSignal(signal1: AbortSignal, signal2: AbortSignal) {
 	return controller.signal
 }
 
-export const structuredClonePolyfill = globalThis.structuredClone || structuredClone
+export function structuredClonePolyfill<T>(any: T) {
+	return (globalThis.structuredClone || structuredClone)(any)
+}
