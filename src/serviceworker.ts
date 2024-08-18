@@ -8,7 +8,15 @@ import { getUint16LE, ResponsifiedReader } from "./zip"
 import { base, base64URLdecode, base64URLencode, getDownloadHeader, mergeSignal, structuredClonePolyfill } from "./utils"
 
 function createId() {
-    return crypto.randomUUID()
+    if (crypto.randomUUID) {
+        return crypto.randomUUID();
+    } else {
+        return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c: string) => {
+            const r = (Math.random() * 16) | 0,
+                v = c === "x" ? r : (r & 0x3) | 0x8;
+            return v.toString(16);
+        });
+    }
 }
 
 export type ResponsifiedGenerator = (request: Request) => Responsified | PromiseLike<Responsified>
@@ -88,7 +96,7 @@ export class Responser extends EventTarget2 {
                             const [stream1, stream2] = responsified.body.tee()
                             responsified.body = stream1
                             result.body = stream2
-                        } else {
+                        } else { // polyfill clone blob, buffers supported?
                             result.body = structuredClonePolyfill(responsified.body)
                         }
                     } else {
