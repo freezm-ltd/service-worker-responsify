@@ -13087,7 +13087,7 @@ var Responser = class _Responser extends EventTarget22 {
       if (zip.broadcast) {
         const broadcastChannel = new BroadcastChannel(zip.broadcast);
         const interval = setInterval(() => {
-          broadcastChannel.postMessage(written);
+          broadcastChannel.postMessage({ total: size, written });
           if (size === written) clearInterval(interval);
         }, 500);
       }
