@@ -56,6 +56,7 @@ export type ZipEntryRequest = {
 export type ZipRequest = {
     name: string;
     entries: Array<ZipEntryRequest>;
+    broadcast?: string;
 };
 export type UnzipRequest = {
     request: RequestPrecursorExtended;

@@ -63,6 +63,7 @@ export type ZipEntryRequest = {
 export type ZipRequest = {
     name: string
     entries: Array<ZipEntryRequest>
+    broadcast?: string // to know how much written, BroadcastChannel
 }
 
 export type UnzipRequest = {

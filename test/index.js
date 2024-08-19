@@ -12272,6 +12272,14 @@ var EventTarget23 = class extends EventTarget {
     });
   }
 };
+function lengthCallback(callback, key = "length") {
+  return new TransformStream({
+    transform(chunk, controller) {
+      callback(chunk[key]);
+      controller.enqueue(chunk);
+    }
+  });
+}
 function fitMetaStream(size, measurer, slicer) {
   const transform = new TransformStream();
   const tReadable = transform.readable;
@@ -12868,7 +12876,14 @@ function structuredClonePolyfill(any) {
 
 // src/serviceworker.ts
 function createId() {
-  return crypto.randomUUID();
+  if (crypto.randomUUID) {
+    return crypto.randomUUID();
+  } else {
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+      const r2 = Math.random() * 16 | 0, v2 = c === "x" ? r2 : r2 & 3 | 8;
+      return v2.toString(16);
+    });
+  }
 }
 var UNZIP_CACHE_CHUNK_SIZE = 10 * 1024 * 1024;
 var UNZIP_CACHE_NAME = "service-worker-responsify-unzip-cache";
@@ -13058,21 +13073,34 @@ var Responser = class _Responser extends EventTarget22 {
       const uurl = this.getUniqueURL();
       const reuse = zip.entries.every((entry) => entry.request.reuse);
       const name = zip.name.toLowerCase().lastIndexOf(".zip") === zip.name.length - 4 ? zip.name : zip.name + ".zip";
-      let size = 0n;
+      let size = 0;
       if (zip.entries.every((entry) => !!entry.size)) {
         try {
-          size = S(zip.entries.map((entry) => {
+          size = Number(S(zip.entries.map((entry) => {
             return { name: entry.name, size: entry.size };
-          }));
+          })));
         } catch {
         }
+      }
+      let abortController = new AbortController();
+      let written = 0;
+      if (zip.broadcast) {
+        const broadcastChannel = new BroadcastChannel(zip.broadcast);
+        const interval = setInterval(() => {
+          broadcastChannel.postMessage(written);
+          if (size === written) clearInterval(interval);
+        }, 500);
       }
       this.storage.set(uurl.id, (request) => {
         const headers = getDownloadHeader(name);
         if (size > 0n) headers["Content-Length"] = size.toString();
         const result = { reuse, headers };
         if (request.method === "GET") {
-          result.body = N(this.zipSource(zip.entries, request.signal), { buffersAreUTF8: true });
+          abortController.abort("ZipRequestNewlyInitiated");
+          abortController = new AbortController();
+          written = 0;
+          const source = this.zipSource(zip.entries, request.signal);
+          result.body = N(source, { buffersAreUTF8: true }).pipeThrough(lengthCallback((delta) => written += delta), { signal: abortController.signal });
         }
         return result;
       });

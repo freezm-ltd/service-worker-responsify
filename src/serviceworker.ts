@@ -1,7 +1,7 @@
 import { Messenger, MessengerFactory } from "@freezm-ltd/post-together"
 import { EntryMetadataHttp, MergeRequest, precursor2request, request2precursor, RequestPrecursor, RequestPrecursorExtended, RequestPrecursorWithStream, ReservedRequest, Responsified, responsify, ResponsifyResponse, UnzipRequest, UnzipResponse, ZipEntryRequest, ZipRequest } from "./client"
 import { EventTarget2 } from "@freezm-ltd/event-target-2"
-import { fitMetaByteStream, mergeStream, sliceByteStream } from "@freezm-ltd/stream-utils"
+import { fitMetaByteStream, lengthCallback, mergeStream, sliceByteStream } from "@freezm-ltd/stream-utils"
 import { makeZip, predictLength } from "client-zip"
 import { Entry, ZipEntry } from "@zip.js/zip.js"
 import { getUint16LE, ResponsifiedReader } from "./zip"
@@ -249,20 +249,33 @@ export class Responser extends EventTarget2 {
             const uurl = this.getUniqueURL()
             const reuse = zip.entries.every(entry => entry.request.reuse)
             const name = zip.name.toLowerCase().lastIndexOf(".zip") === zip.name.length - 4 ? zip.name : zip.name + ".zip"
-            let size = 0n
+            let size = 0
             if (zip.entries.every(entry => !!entry.size)) {
                 try { // try predict length
-                    size = predictLength(zip.entries.map(entry => {
+                    size = Number(predictLength(zip.entries.map(entry => {
                         return { name: entry.name, size: entry.size! }
-                    }))
+                    })))
                 } catch { }
+            }
+            let abortController = new AbortController()
+            let written = 0
+            if (zip.broadcast) {
+                const broadcastChannel = new BroadcastChannel(zip.broadcast)
+                const interval = setInterval(() => {
+                    broadcastChannel.postMessage(written)
+                    if (size === written) clearInterval(interval);
+                }, 500);
             }
             this.storage.set(uurl.id, (request) => { // zipping files
                 const headers = getDownloadHeader(name)
                 if (size > 0n) headers["Content-Length"] = size.toString();
                 const result: Responsified = { reuse, headers }
                 if (request.method === "GET") { // GET request, add body
-                    result.body = makeZip(this.zipSource(zip.entries, request.signal), { buffersAreUTF8: true })
+                    abortController.abort("ZipRequestNewlyInitiated")
+                    abortController = new AbortController()
+                    written = 0
+                    const source = this.zipSource(zip.entries, request.signal)
+                    result.body = makeZip(source, { buffersAreUTF8: true }).pipeThrough(lengthCallback((delta) => written += delta), { signal: abortController.signal })
                 }
                 return result
             })
