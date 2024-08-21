@@ -119,11 +119,11 @@
                 const file = e.target.files[0]
                 const rurl = await Responsify.reserve(() => URL.createObjectURL(file), true)
                 const furl = await Responsify.forward({ body: file, reuse: true })
-                viewUnzip(rurl, document.getElementById("list"))
+                viewUnzip(rurl)
             }
         }
 
-        async function viewUnzip(url, parent) {
+        async function viewUnzip(url, parent = document.getElementById("list")) {
             const result = await Responsify.unzip({ request: { url } })
             console.log(result)
             for (let [name, entry] of Object.entries(result.entries)) {
@@ -148,6 +148,8 @@
                 parent.appendChild(childElement)
             }
         }
+
+        window.viewUnzip = viewUnzip
 
         testUnzip()
     </script>

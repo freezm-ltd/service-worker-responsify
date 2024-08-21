@@ -5,19 +5,8 @@ import { fitMetaByteStream, lengthCallback, mergeStream, sliceByteStream } from 
 import { makeZip, predictLength } from "client-zip"
 import { Entry, ZipEntry } from "@zip.js/zip.js"
 import { getUint16LE, ResponsifiedReader } from "./zip"
-import { base, base64URLdecode, base64URLencode, getDownloadHeader, mergeSignal, structuredClonePolyfill } from "./utils"
-
-function createId() {
-    if (crypto.randomUUID) {
-        return crypto.randomUUID();
-    } else {
-        return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c: string) => {
-            const r = (Math.random() * 16) | 0,
-                v = c === "x" ? r : (r & 0x3) | 0x8;
-            return v.toString(16);
-        });
-    }
-}
+import { base, base64URLdecode, base64URLencode, getDownloadHeader, mergeSignal, randomUUID, structuredClonePolyfill } from "./utils"
+import { CacheBucket } from "./cache"
 
 export type ResponsifiedGenerator = (request: Request) => Responsified | PromiseLike<Responsified>
 
@@ -290,11 +279,10 @@ export class Responser extends EventTarget2 {
             const password = unzip.password
             let passwordChecked = false
             const entryMap: Map<string, ZipEntry> = new Map()
+            const entryPathId: Map<string, string> = new Map()
             const entryDataOffset: Map<string, number> = new Map()
             const entryMetaData: Record<string, EntryMetadataHttp> = {}
-            const entryInit: Map<string, EventTarget2> = new Map()
-            const entryCurrentStream: Record<string, ReadableStream<Uint8Array>> = {}
-            const entryCurrentNumber: Record<string, number> = {}
+            const entryInit: Set<string> = new Set()
             const zip = require("@zip.js/zip.js")
             const entries = await new zip.fs.FS().importZip(new ResponsifiedReader(this, precursor))
 
@@ -309,6 +297,8 @@ export class Responser extends EventTarget2 {
 
                 const name = entry.data.filename
                 entryMap.set(name, entry)
+                const pathId = randomUUID() // compress original path
+                entryPathId.set(pathId, name)
 
                 // filter Functions(not transferable)
                 let data: Record<string, any> = {}
@@ -318,7 +308,7 @@ export class Responser extends EventTarget2 {
                     }
                     data[key] = value
                 }
-                data["url"] = uurl.url + "&path=" + base64URLencode(name)
+                data["url"] = uurl.url + "&path=" + pathId
                 entryMetaData[name] = data as EntryMetadataHttp
             }
 
@@ -326,7 +316,7 @@ export class Responser extends EventTarget2 {
                 const param = (new URL(request.url)).searchParams
                 let path = param.get("path")
                 if (!path) return { status: 400, body: "Need searchParam - 'path'", reuse: true }
-                path = base64URLdecode(path)
+                path = entryPathId.get(path) || ""
                 const entry = entryMap.get(path)
                 if (!entry) return { status: 404, body: "Entry not found", reuse: true }
                 const data = entry.data! as Entry
@@ -368,74 +358,19 @@ export class Responser extends EventTarget2 {
                     const offset = entryDataOffset.get(path)!
                     result.body = (await this.createResponseFromPrecursor(precursor, range.start + offset, range.end - range.start + 1)).body!
                 } else { // unseekable, cacheStorage need
-                    const cacheKey = `${UNZIP_CACHE_NAME}:${unzipId}`
-                    const cache = await caches.open(cacheKey)
-                    const scheme = `/${path}`
-                    const emitter = entryInit.get(path) || new EventTarget2()
+                    const bucket = await CacheBucket.new(`${UNZIP_CACHE_NAME}:${unzipId}`)
                     if (!entryInit.has(path)) {
-                        entryInit.set(path, emitter)
-                        let number = entryCurrentNumber[path] = -1
-                        const { readable, writable } = fitMetaByteStream(UNZIP_CACHE_CHUNK_SIZE)
+                        entryInit.add(path)
+                        const { readable, writable } = new TransformStream()
                         const abortController = new AbortController()
-                        data.getData!(writable, { password, signal: abortController.signal }).catch((e) => { console.debug("Entry.getData error:", e) })
-                        readable.pipeTo(new WritableStream({
-                            async write(stream) {
-                                if (!await caches.has(cacheKey)) { // if cache deleted
-                                    const reason = "cache deleted"
-                                    for (let key of await cache.keys()) await cache.delete(key); // clear detached cache
-                                    abortController.abort(reason)
-                                    return
-                                }
-                                number += 1
-                                const [stream1, stream2] = stream.tee()
-                                entryCurrentStream[path] = stream1
-                                entryCurrentNumber[path] = number
-                                emitter.dispatch("cache-start", number)
-                                await cache.put(`${scheme}:${number}`, new Response(stream2))
-                                emitter.dispatch("cache-end", number)
-                                if (entryCurrentStream[path].locked) entryCurrentStream[path].cancel("expired"); // for GC
+                        data.getData!(writable, { password, signal: abortController.signal }).catch((e) => {
+                            if (!e.startsWith("CacheBucket")) {
+                                console.debug("Entry.getData error:", e)
                             }
-                        }))
+                        })
+                        bucket.set(path, readable, 0, abortController)
                     }
-                    const { readable, writable } = new TransformStream()
-                    const startNumber = Math.floor(range.start / UNZIP_CACHE_CHUNK_SIZE)
-                    const endNumber = Math.floor((range.end + 1) / UNZIP_CACHE_CHUNK_SIZE)
-                    const startOffset = range.start % UNZIP_CACHE_CHUNK_SIZE
-                    const endOffset = (range.end + 1) % UNZIP_CACHE_CHUNK_SIZE
-                    const cycle = async () => {
-                        let errored = false
-                        for (let i = startNumber; i <= endNumber; i++) {
-                            let source: ReadableStream<Uint8Array>
-                            if (entryCurrentNumber[path] > i) {
-                                source = (await cache.match(`${scheme}:${i}`))!.body!
-                            } else {
-                                if (entryCurrentNumber[path] < i) { // wait for piece
-                                    await emitter.waitFor("cache-start", i)
-                                }
-                                // teeing for parallel reading
-                                const [stream1, stream2] = entryCurrentStream[path].tee()
-                                entryCurrentStream[path] = stream1
-                                source = stream2
-                            }
-                            const sliceStart = i === startNumber && startOffset > 0
-                            const sliceEnd = i === endNumber && endOffset > 0
-                            if (sliceStart && sliceEnd) {
-                                source = source.pipeThrough(sliceByteStream(startOffset, endOffset))
-                            } else if (sliceStart) {
-                                source = source.pipeThrough(sliceByteStream(startOffset))
-                            } else if (sliceEnd) {
-                                source = source.pipeThrough(sliceByteStream(0, endOffset))
-                            }
-                            await source.pipeTo(writable, { preventClose: true, preventCancel: true }).catch(() => {
-                                // slient catch
-                                errored = true
-                            })
-                            if (errored) break;
-                        }
-                        if (!errored) writable.close();
-                    }
-                    cycle()
-                    result.body = readable
+                    result.body = await bucket.get(path, range.start, range.end - range.start + 1)
                 }
                 return result
             })
@@ -462,10 +397,10 @@ export class Responser extends EventTarget2 {
             for (let key of keys) {
                 const time = unzipRetainMap.get(key)
                 if (time && now - time > 2 * UNZIP_CACHE_RETAIN_INTERVAL) {
-                    caches.delete(key)
+                    CacheBucket.drop(key)
                 }
                 if (!time && key.startsWith(UNZIP_CACHE_NAME)) {
-                    caches.delete(key)
+                    CacheBucket.drop(key)
                 }
             }
         }, 2 * UNZIP_CACHE_RETAIN_INTERVAL)
@@ -515,12 +450,12 @@ export class Responser extends EventTarget2 {
         return await fetch(request)
     }
 
-    async createResponseFromPrecursor(precursor: RequestPrecursor | RequestPrecursorWithStream | RequestPrecursorExtended, start?: number, length?: number) {
+    async createResponseFromPrecursor(precursor: RequestPrecursor | RequestPrecursorWithStream | RequestPrecursorExtended, at?: number, length?: number) {
         const init: RequestInit = {}
-        if (start !== undefined && length) {
+        if (at !== undefined && length) {
             init.method = "GET"
             const headers = new Headers(precursor.headers)
-            headers.set("Range", `bytes=${start}-${start + length - 1}`)
+            headers.set("Range", `bytes=${at}-${at + length - 1}`)
             init.headers = Object.fromEntries([...headers])
         }
         return this.createResponse(precursor2request(precursor, init))
@@ -533,7 +468,7 @@ export class Responser extends EventTarget2 {
     }
 
     getUniqueURL(): { id: string, url: string } {
-        const id = createId()
+        const id = randomUUID()
         if (this.storage.has(id)) return this.getUniqueURL();
         return {
             id,

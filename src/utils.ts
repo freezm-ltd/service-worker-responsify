@@ -92,3 +92,15 @@ export function mergeSignal(signal1: AbortSignal, signal2: AbortSignal) {
 export function structuredClonePolyfill<T>(any: T) {
 	return (globalThis.structuredClone || structuredClone)(any)
 }
+
+export function randomUUID() {
+    if (crypto.randomUUID) {
+        return crypto.randomUUID();
+    } else {
+        return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c: string) => {
+            const r = (Math.random() * 16) | 0,
+                v = c === "x" ? r : (r & 0x3) | 0x8;
+            return v.toString(16);
+        });
+    }
+}

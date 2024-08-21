@@ -12841,29 +12841,6 @@ function getDownloadHeader(name) {
     "Content-Disposition": "attachment; filename*=UTF-8''" + newname
   };
 }
-function base64URLencode(str) {
-  return btoa(
-    encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, function(match, p1) {
-      return String.fromCharCode(parseInt(p1, 16));
-    })
-  ).replace(/[+/]/g, (m) => ENC[m]);
-}
-function base64URLdecode(str) {
-  return decodeURIComponent(
-    Array.prototype.map.call(atob(str.replace(/[-_.]/g, (m) => DEC[m])), function(c) {
-      return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
-    }).join("")
-  );
-}
-var ENC = {
-  "+": "-",
-  "/": "_"
-};
-var DEC = {
-  "-": "+",
-  "_": "/",
-  ".": "="
-};
 function mergeSignal(signal1, signal2) {
   const controller = new AbortController();
   signal1.onabort = (e2) => controller.abort(e2.target.reason);
@@ -12873,9 +12850,7 @@ function mergeSignal(signal1, signal2) {
 function structuredClonePolyfill(any) {
   return (globalThis.structuredClone || esm_default)(any);
 }
-
-// src/serviceworker.ts
-function createId() {
+function randomUUID() {
   if (crypto.randomUUID) {
     return crypto.randomUUID();
   } else {
@@ -12885,6 +12860,126 @@ function createId() {
     });
   }
 }
+
+// src/cache.ts
+var CACHE_CHUNK_SIZE = 10 * 1024 * 1024;
+var _CacheBucket = class _CacheBucket extends EventTarget22 {
+  constructor(id, chunkSize = CACHE_CHUNK_SIZE) {
+    super();
+    this.id = id;
+    this.chunkSize = chunkSize;
+    this.cache = null;
+    this.writing = /* @__PURE__ */ new Map();
+  }
+  static async new(id, chunkSize) {
+    let bucket = this.buckets.get(id);
+    if (!bucket) {
+      bucket = new _CacheBucket(id, chunkSize);
+      await bucket.init();
+      this.buckets.set(id, bucket);
+    }
+    return bucket;
+  }
+  static async drop(id) {
+    if (await caches.has(id)) {
+      const cache = await caches.open(id);
+      for (let key of await cache.keys()) await cache.delete(key);
+      await caches.delete(id);
+    }
+    this.buckets.delete(id);
+  }
+  async init() {
+    this.cache = await caches.open(this.id);
+    this.dispatch("init");
+  }
+  pathNumber(path, number) {
+    return `${path}:${number}`;
+  }
+  async set(path, data, at = 0, abortController) {
+    if (!path.startsWith("/")) path = "/" + path;
+    if (!this.cache) await this.waitFor("init");
+    const cache = this.cache;
+    const startNumber = Math.floor(at / this.chunkSize);
+    const padIndex = at % this.chunkSize;
+    if (padIndex > 0) {
+      let padding;
+      const match = await cache.match(this.pathNumber(path, startNumber));
+      padding = (match ? (await match.blob()).slice(0, padIndex) : new Blob([new ArrayBuffer(padIndex)])).stream();
+      const source = data;
+      data = mergeStream([() => padding, () => source]);
+    }
+    const reader = data.pipeThrough(fitMetaByteStream(this.chunkSize)).getReader();
+    let number = startNumber;
+    let loop = true;
+    this.writing.set(path, { stream: new ReadableStream(), number: -1 });
+    while (loop) {
+      const { done, value } = await reader.read();
+      const deleted = !await caches.has(this.id);
+      const prev = this.writing.get(path);
+      if (prev) prev.stream.cancel("CacheBucket: expired");
+      if (done) break;
+      if (deleted) {
+        abortController?.abort("CacheBucket: expired");
+        _CacheBucket.drop(this.id);
+        break;
+      }
+      const [stream1, stream2] = value.tee();
+      this.writing.set(path, { stream: stream2, number });
+      const key = this.pathNumber(path, number);
+      this.dispatch("caching", key);
+      await cache.put(key, new Response(stream1));
+      number++;
+    }
+    this.writing.delete(path);
+  }
+  async get(path, at = 0, length) {
+    if (!path.startsWith("/")) path = "/" + path;
+    if (!this.cache) await this.waitFor("init");
+    const cache = this.cache;
+    const startNumber = Math.floor(at / this.chunkSize);
+    const endNumber = Math.floor((at + length) / this.chunkSize);
+    const startOffset = at % this.chunkSize;
+    const endOffset = (at + length) % this.chunkSize;
+    const { readable, writable } = new TransformStream();
+    const task = async () => {
+      for (let i2 = startNumber; i2 <= endNumber; i2++) {
+        const key = this.pathNumber(path, i2);
+        const cached = await cache.match(key);
+        let source = cached?.body;
+        if (!source) {
+          let writing = this.writing.get(path);
+          if (!writing) break;
+          if (writing.number < i2) {
+            await this.waitFor("caching", key);
+            writing = this.writing.get(path);
+          }
+          const [stream1, stream2] = writing.stream.tee();
+          writing.stream = stream1;
+          source = stream2;
+        }
+        const sliceStart = i2 === startNumber && startOffset > 0;
+        const sliceEnd = i2 === endNumber && endOffset > 0;
+        if (sliceStart && sliceEnd) {
+          source = source.pipeThrough(sliceByteStream(startOffset, endOffset));
+        } else if (sliceStart) {
+          source = source.pipeThrough(sliceByteStream(startOffset));
+        } else if (sliceEnd) {
+          source = source.pipeThrough(sliceByteStream(0, endOffset));
+        }
+        await source.pipeTo(writable, { preventClose: true }).catch(() => {
+        });
+      }
+      writable.close().catch(() => {
+      });
+    };
+    task();
+    return readable;
+  }
+};
+_CacheBucket.buckets = /* @__PURE__ */ new Map();
+var CacheBucket = _CacheBucket;
+
+// src/serviceworker.ts
 var UNZIP_CACHE_CHUNK_SIZE = 10 * 1024 * 1024;
 var UNZIP_CACHE_NAME = "service-worker-responsify-unzip-cache";
 var UNZIP_CACHE_RETAIN_INTERVAL = 10 * 1e3;
@@ -13113,11 +13208,10 @@ var Responser = class _Responser extends EventTarget22 {
       const password = unzip.password;
       let passwordChecked = false;
       const entryMap = /* @__PURE__ */ new Map();
+      const entryPathId = /* @__PURE__ */ new Map();
       const entryDataOffset = /* @__PURE__ */ new Map();
       const entryMetaData = {};
-      const entryInit = /* @__PURE__ */ new Map();
-      const entryCurrentStream = {};
-      const entryCurrentNumber = {};
+      const entryInit = /* @__PURE__ */ new Set();
       const zip = require_zip();
       const entries = await new zip.fs.FS().importZip(new ResponsifiedReader(this, precursor));
       for (let entry of entries) {
@@ -13130,6 +13224,8 @@ var Responser = class _Responser extends EventTarget22 {
         }
         const name = entry.data.filename;
         entryMap.set(name, entry);
+        const pathId = randomUUID();
+        entryPathId.set(pathId, name);
         let data = {};
         for (let [key, value] of Object.entries(entry.data)) {
           if (value instanceof Function) {
@@ -13137,14 +13233,14 @@ var Responser = class _Responser extends EventTarget22 {
           }
           data[key] = value;
         }
-        data["url"] = uurl.url + "&path=" + base64URLencode(name);
+        data["url"] = uurl.url + "&path=" + pathId;
         entryMetaData[name] = data;
       }
       this.storage.set(uurl.id, async (request) => {
         const param = new URL(request.url).searchParams;
         let path = param.get("path");
         if (!path) return { status: 400, body: "Need searchParam - 'path'", reuse: true };
-        path = base64URLdecode(path);
+        path = entryPathId.get(path) || "";
         const entry = entryMap.get(path);
         if (!entry) return { status: 404, body: "Entry not found", reuse: true };
         const data = entry.data;
@@ -13183,74 +13279,19 @@ var Responser = class _Responser extends EventTarget22 {
           const offset = entryDataOffset.get(path);
           result.body = (await this.createResponseFromPrecursor(precursor, range.start + offset, range.end - range.start + 1)).body;
         } else {
-          const cacheKey = `${UNZIP_CACHE_NAME}:${unzipId}`;
-          const cache = await caches.open(cacheKey);
-          const scheme = `/${path}`;
-          const emitter = entryInit.get(path) || new EventTarget22();
+          const bucket = await CacheBucket.new(`${UNZIP_CACHE_NAME}:${unzipId}`);
           if (!entryInit.has(path)) {
-            entryInit.set(path, emitter);
-            let number = entryCurrentNumber[path] = -1;
-            const { readable: readable2, writable: writable2 } = fitMetaByteStream(UNZIP_CACHE_CHUNK_SIZE);
+            entryInit.add(path);
+            const { readable, writable } = new TransformStream();
             const abortController = new AbortController();
-            data.getData(writable2, { password, signal: abortController.signal }).catch((e2) => {
-              console.debug("Entry.getData error:", e2);
+            data.getData(writable, { password, signal: abortController.signal }).catch((e2) => {
+              if (!e2.startsWith("CacheBucket")) {
+                console.debug("Entry.getData error:", e2);
+              }
             });
-            readable2.pipeTo(new WritableStream({
-              async write(stream) {
-                if (!await caches.has(cacheKey)) {
-                  const reason = "cache deleted";
-                  for (let key of await cache.keys()) await cache.delete(key);
-                  abortController.abort(reason);
-                  return;
-                }
-                number += 1;
-                const [stream1, stream2] = stream.tee();
-                entryCurrentStream[path] = stream1;
-                entryCurrentNumber[path] = number;
-                emitter.dispatch("cache-start", number);
-                await cache.put(`${scheme}:${number}`, new Response(stream2));
-                emitter.dispatch("cache-end", number);
-                if (entryCurrentStream[path].locked) entryCurrentStream[path].cancel("expired");
-              }
-            }));
+            bucket.set(path, readable, 0, abortController);
           }
-          const { readable, writable } = new TransformStream();
-          const startNumber = Math.floor(range.start / UNZIP_CACHE_CHUNK_SIZE);
-          const endNumber = Math.floor((range.end + 1) / UNZIP_CACHE_CHUNK_SIZE);
-          const startOffset = range.start % UNZIP_CACHE_CHUNK_SIZE;
-          const endOffset = (range.end + 1) % UNZIP_CACHE_CHUNK_SIZE;
-          const cycle = async () => {
-            let errored = false;
-            for (let i2 = startNumber; i2 <= endNumber; i2++) {
-              let source;
-              if (entryCurrentNumber[path] > i2) {
-                source = (await cache.match(`${scheme}:${i2}`)).body;
-              } else {
-                if (entryCurrentNumber[path] < i2) {
-                  await emitter.waitFor("cache-start", i2);
-                }
-                const [stream1, stream2] = entryCurrentStream[path].tee();
-                entryCurrentStream[path] = stream1;
-                source = stream2;
-              }
-              const sliceStart = i2 === startNumber && startOffset > 0;
-              const sliceEnd = i2 === endNumber && endOffset > 0;
-              if (sliceStart && sliceEnd) {
-                source = source.pipeThrough(sliceByteStream(startOffset, endOffset));
-              } else if (sliceStart) {
-                source = source.pipeThrough(sliceByteStream(startOffset));
-              } else if (sliceEnd) {
-                source = source.pipeThrough(sliceByteStream(0, endOffset));
-              }
-              await source.pipeTo(writable, { preventClose: true, preventCancel: true }).catch(() => {
-                errored = true;
-              });
-              if (errored) break;
-            }
-            if (!errored) writable.close();
-          };
-          cycle();
-          result.body = readable;
+          result.body = await bucket.get(path, range.start, range.end - range.start + 1);
         }
         return result;
       });
@@ -13277,10 +13318,10 @@ var Responser = class _Responser extends EventTarget22 {
       for (let key of keys2) {
         const time = unzipRetainMap.get(key);
         if (time && now - time > 2 * UNZIP_CACHE_RETAIN_INTERVAL) {
-          caches.delete(key);
+          CacheBucket.drop(key);
         }
         if (!time && key.startsWith(UNZIP_CACHE_NAME)) {
-          caches.delete(key);
+          CacheBucket.drop(key);
         }
       }
     }, 2 * UNZIP_CACHE_RETAIN_INTERVAL);
@@ -13323,12 +13364,12 @@ var Responser = class _Responser extends EventTarget22 {
     }
     return await fetch(request);
   }
-  async createResponseFromPrecursor(precursor, start, length) {
+  async createResponseFromPrecursor(precursor, at, length) {
     const init = {};
-    if (start !== void 0 && length) {
+    if (at !== void 0 && length) {
       init.method = "GET";
       const headers = new Headers(precursor.headers);
-      headers.set("Range", `bytes=${start}-${start + length - 1}`);
+      headers.set("Range", `bytes=${at}-${at + length - 1}`);
       init.headers = Object.fromEntries([...headers]);
     }
     return this.createResponse(precursor2request(precursor, init));
@@ -13339,7 +13380,7 @@ var Responser = class _Responser extends EventTarget22 {
     return url.searchParams.get("id");
   }
   getUniqueURL() {
-    const id = createId();
+    const id = randomUUID();
     if (this.storage.has(id)) return this.getUniqueURL();
     return {
       id,

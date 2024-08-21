@@ -14,7 +14,7 @@ export declare class Responser extends EventTarget2 {
     protected constructor();
     handleRequest(request: Request): Promise<Response> | undefined;
     createResponse(request: Request): Promise<Response>;
-    createResponseFromPrecursor(precursor: RequestPrecursor | RequestPrecursorWithStream | RequestPrecursorExtended, start?: number, length?: number): Promise<Response>;
+    createResponseFromPrecursor(precursor: RequestPrecursor | RequestPrecursorWithStream | RequestPrecursorExtended, at?: number, length?: number): Promise<Response>;
     parseId(url: string | URL): string | null;
     getUniqueURL(): {
         id: string;
