@@ -1,11 +1,11 @@
 import { Messenger, MessengerFactory } from "@freezm-ltd/post-together"
 import { EntryMetadataHttp, MergeRequest, precursor2request, request2precursor, RequestPrecursor, RequestPrecursorExtended, RequestPrecursorWithStream, ReservedRequest, Responsified, responsify, ResponsifyResponse, UnzipRequest, UnzipResponse, ZipEntryRequest, ZipRequest } from "./client"
 import { EventTarget2 } from "@freezm-ltd/event-target-2"
-import { fitMetaByteStream, lengthCallback, mergeStream, sliceByteStream } from "@freezm-ltd/stream-utils"
+import { lengthCallback, mergeStream, sliceByteStream } from "@freezm-ltd/stream-utils"
 import { makeZip, predictLength } from "client-zip"
 import { Entry, ZipEntry } from "@zip.js/zip.js"
 import { getUint16LE, ResponsifiedReader } from "./zip"
-import { base, base64URLdecode, base64URLencode, getDownloadHeader, mergeSignal, randomUUID, structuredClonePolyfill } from "./utils"
+import { base, getDownloadHeader, mergeSignal, randomUUID, structuredClonePolyfill } from "./utils"
 import { CacheBucket } from "./cache"
 
 export type ResponsifiedGenerator = (request: Request, clientId: string) => Responsified | PromiseLike<Responsified>
