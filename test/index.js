@@ -13461,6 +13461,17 @@ var Responser = class _Responser extends EventTarget22 {
           }
           result.body = await bucket.get(path, range.start, range.end - range.start + 1);
         }
+        let broadcast = param.get("broadcast");
+        if (broadcast) {
+          const channel = new BroadcastChannel(broadcast);
+          const total = entry.uncompressedSize;
+          let written = 0;
+          const interval = setInterval(() => {
+            channel.postMessage({ total, written });
+            if (total === written) clearInterval(interval);
+          }, 500);
+          result.body = result.body.pipeThrough(lengthCallback((delta) => written += delta));
+        }
         return result;
       });
       return {
