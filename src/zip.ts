@@ -5,7 +5,8 @@ import { precursor2request, RequestPrecursorExtended } from "./client";
 export class ResponsifiedReader implements Initializable, ReadableReader {
     constructor(
         readonly responser: Responser,
-        readonly precursor: RequestPrecursorExtended
+        readonly precursor: RequestPrecursorExtended,
+        readonly clientId: string
     ) {
 
     }
@@ -19,7 +20,7 @@ export class ResponsifiedReader implements Initializable, ReadableReader {
             const { offset, size } = readable;
             if (offset && size) {
                 clearInterval(interval);
-                this.responser.createResponseFromPrecursor(this.precursor, offset, size).then((response) => {
+                this.responser.createResponseFromPrecursor(this.precursor, this.clientId, offset, size).then((response) => {
                     const body = response.body;
                     if (!body) return writable.close();
                     body.pipeTo(writable);
@@ -37,13 +38,13 @@ export class ResponsifiedReader implements Initializable, ReadableReader {
         if (request.url.startsWith("blob:")) { // blob url
             method = "GET"
         }
-        const response = await this.responser.createResponse(new Request(request, { method }))
+        const response = await this.responser.createResponse(new Request(request, { method }), this.clientId)
         const length = response.headers.get("Content-Length")
         if (length) this.size = Number(length);
     }
 
     async readUint8Array(index: number, length: number) {
-        const response = await this.responser.createResponseFromPrecursor(this.precursor, index, length)
+        const response = await this.responser.createResponseFromPrecursor(this.precursor, this.clientId, index, length)
         const data = new Uint8Array(await response.arrayBuffer())
         return data
     }

@@ -12007,6 +12007,152 @@ var MessengerFactory = class {
   }
 };
 
+// src/client.ts
+var Responsify = class _Responsify {
+  constructor() {
+    this.reserved = /* @__PURE__ */ new Map();
+    // unzip
+    this.unzipRetain = /* @__PURE__ */ new Set();
+    this.messenger = MessengerFactory.new(navigator.serviceWorker);
+    this.messenger.response("reserved", async ({ id, precursor }) => {
+      const responsified = this.reserved.get(id);
+      if (responsified) {
+        const result = await responsified(precursor2request(precursor));
+        if (result.body instanceof ReadableStream) {
+          return { payload: result, transfer: [result.body] };
+        }
+        return result;
+      } else {
+        return { reuse: false, status: 404 };
+      }
+    });
+  }
+  static get instance() {
+    if (!this._instance) this._instance = new _Responsify();
+    return this._instance;
+  }
+  // reserve (promised) window-created response and forward to service worker future
+  static async reserve(generator, reuse, timeout = 5 * 60 * 1e3) {
+    const result = await this.instance.messenger.request("reserve", timeout);
+    this.instance.reserved.set(result.id, async (request) => {
+      if (!reuse) this.instance.reserved.delete(result.id);
+      return responsify(await generator(request), { reuse });
+    });
+    return result.url;
+  }
+  // store request-precursor in service-worker and get response future
+  static async store(precursor) {
+    return (await this.instance.messenger.request("store", precursor)).url;
+  }
+  // forward window-created response to service worker
+  static async forward(responsified) {
+    let transfer = void 0;
+    if (responsified.body instanceof ReadableStream) {
+      transfer = [responsified.body];
+    }
+    return (await this.instance.messenger.request("forward", responsified, transfer)).url;
+  }
+  // merge multiple requests to single-ranged request
+  static async merge(merge) {
+    return (await this.instance.messenger.request("merge", merge)).url;
+  }
+  // zip multiple requests
+  static async zip(zip) {
+    return (await this.instance.messenger.request("zip", zip)).url;
+  }
+  static async unzip(unzip, timeout = 5 * 60 * 1e3, promptPassword = unzipPromptPassword) {
+    let result = void 0;
+    let isFirst = true;
+    while (!result || result.passwordNeed) {
+      result = await this.instance.messenger.request("unzip", unzip, void 0, timeout);
+      if (result.passwordNeed) {
+        unzip.password = await promptPassword(isFirst);
+        isFirst = false;
+      }
+    }
+    this.instance.unzipRetain.add(result.unzipId);
+    return {
+      url: result.url,
+      entries: result.entries
+    };
+  }
+  // revoke
+  static async revoke(url) {
+    return await this.instance.messenger.request("revoke", url);
+  }
+};
+function unzipPromptPassword(isFirst) {
+  let password;
+  if (isFirst) {
+    password = prompt("This file is encrypted. Please enter the password.");
+  } else {
+    password = prompt("The password does not match. Please check the password.");
+  }
+  if (!password) {
+    return unzipPromptPassword(false);
+  }
+  return password;
+}
+async function responsify(responsifiable, init) {
+  switch (responsifiable.constructor) {
+    case ReadableStream:
+      return responsifyStream(responsifiable, init);
+    case Request:
+      return responsifyRequest(responsifiable, init);
+    case Response:
+      return responsifyResponse(responsifiable, init);
+    case String:
+    case URL:
+      return responsifyResponse(Response.redirect(responsifiable, 301), init);
+    default:
+      return responsifyResponse(new Response(responsifiable), init);
+  }
+}
+async function responsifyRequest(request, init) {
+  return responsifyResponse(await fetch(request), init);
+}
+function responsifyResponse(response, init) {
+  return {
+    reuse: init?.reuse || false,
+    body: response.body || void 0,
+    headers: init?.headers || Object.fromEntries([...response.headers]),
+    status: init?.status || response.status,
+    statusText: init?.statusText || response.statusText
+  };
+}
+function responsifyStream(stream, init) {
+  return Object.assign({ body: stream }, init);
+}
+function request2precursor(request) {
+  return {
+    url: request.url,
+    body: request.body || void 0,
+    cache: request.cache,
+    credentials: request.credentials,
+    headers: Object.fromEntries([...request.headers]),
+    integrity: request.integrity,
+    keepalive: request.keepalive,
+    method: request.method,
+    mode: request.mode,
+    //priority: request.priority,
+    redirect: request.redirect,
+    referrer: request.referrer,
+    referrerPolicy: request.referrerPolicy
+  };
+}
+function precursor2request(precursor, additionalInit) {
+  let { url, ...init } = precursor;
+  if (init.mode === "navigate") {
+    init.mode = "same-origin";
+  }
+  if ("reuse" in init) {
+    const { reuse, ..._init } = init;
+    init = _init;
+  }
+  if (additionalInit) Object.assign(init, additionalInit);
+  return new Request(url, init);
+}
+
 // node_modules/.pnpm/@freezm-ltd+event-target-2@https+++codeload.github.com+freezm-ltd+EventTarget2+tar.gz+94919e1_gbpkf7y4wptyhrdgixdnzzileq/node_modules/@freezm-ltd/event-target-2/dist/index.js
 var EventTarget22 = class extends EventTarget {
   constructor() {
@@ -12572,9 +12718,10 @@ function N(t2, a2 = {}) {
 
 // src/zip.ts
 var ResponsifiedReader = class {
-  constructor(responser, precursor) {
+  constructor(responser, precursor, clientId) {
     this.responser = responser;
     this.precursor = precursor;
+    this.clientId = clientId;
   }
   // @ts-ignore
   get readable() {
@@ -12583,7 +12730,7 @@ var ResponsifiedReader = class {
       const { offset, size } = readable;
       if (offset && size) {
         clearInterval(interval);
-        this.responser.createResponseFromPrecursor(this.precursor, offset, size).then((response) => {
+        this.responser.createResponseFromPrecursor(this.precursor, this.clientId, offset, size).then((response) => {
           const body = response.body;
           if (!body) return writable.close();
           body.pipeTo(writable);
@@ -12598,12 +12745,12 @@ var ResponsifiedReader = class {
     if (request.url.startsWith("blob:")) {
       method = "GET";
     }
-    const response = await this.responser.createResponse(new Request(request, { method }));
+    const response = await this.responser.createResponse(new Request(request, { method }), this.clientId);
     const length = response.headers.get("Content-Length");
     if (length) this.size = Number(length);
   }
   async readUint8Array(index, length) {
-    const response = await this.responser.createResponseFromPrecursor(this.precursor, index, length);
+    const response = await this.responser.createResponseFromPrecursor(this.precursor, this.clientId, index, length);
     const data = new Uint8Array(await response.arrayBuffer());
     return data;
   }
@@ -12880,9 +13027,10 @@ var _CacheBucket = class _CacheBucket extends EventTarget22 {
     }
     return bucket;
   }
-  static async drop(id) {
-    if (await caches.has(id)) {
-      const cache = await caches.open(id);
+  static async drop(bucket) {
+    const id = bucket.id;
+    const cache = bucket.cache;
+    if (cache) {
       for (let key of await cache.keys()) await cache.delete(key);
       await caches.delete(id);
     }
@@ -12920,7 +13068,7 @@ var _CacheBucket = class _CacheBucket extends EventTarget22 {
       if (done) break;
       if (deleted) {
         abortController?.abort("CacheBucket: expired");
-        _CacheBucket.drop(this.id);
+        _CacheBucket.drop(this);
         break;
       }
       const [stream1, stream2] = value.tee();
@@ -12982,7 +13130,6 @@ var CacheBucket = _CacheBucket;
 // src/serviceworker.ts
 var UNZIP_CACHE_CHUNK_SIZE = 10 * 1024 * 1024;
 var UNZIP_CACHE_NAME = "service-worker-responsify-unzip-cache";
-var UNZIP_CACHE_RETAIN_INTERVAL = 10 * 1e3;
 var Responser = class _Responser extends EventTarget22 {
   constructor() {
     super();
@@ -13006,7 +13153,7 @@ var Responser = class _Responser extends EventTarget22 {
     });
     this.messenger.response("store", (precursor) => {
       const uurl = this.getUniqueURL();
-      this.storage.set(uurl.id, async (childRequest) => {
+      this.storage.set(uurl.id, async (childRequest, clientId) => {
         const parentRequest = precursor2request(precursor, { method: childRequest.method });
         const parentRange = parentRequest.headers.get("Range");
         const childRange = new Headers(childRequest.headers).get("Range");
@@ -13015,7 +13162,7 @@ var Responser = class _Responser extends EventTarget22 {
           if (parentRange) range = nestRange(parentRange, childRange);
           parentRequest.headers.set("Range", range);
         }
-        let response = await this.createResponse(parentRequest);
+        let response = await this.createResponse(parentRequest, clientId);
         if (parentRange && childRange && response.status === 206) {
           const offset = parseRange(parentRange).start;
           const total = getRangeLength(parentRange);
@@ -13096,7 +13243,7 @@ var Responser = class _Responser extends EventTarget22 {
       const uurl = this.getUniqueURL();
       const lastPart = parts[parts.length - 1];
       const total = init.length || (lastPart.length ? lastPart.index + lastPart.length : void 0);
-      this.storage.set(uurl.id, (request) => {
+      this.storage.set(uurl.id, (request, clientId) => {
         const result = structuredClonePolyfill(init);
         result.body = void 0;
         result.headers = result.headers || {};
@@ -13157,7 +13304,7 @@ var Responser = class _Responser extends EventTarget22 {
           if (total) result.headers["Content-Length"] = total.toString();
         }
         if (request.method === "GET") {
-          const generators = precursors.map((p2) => async () => (await this.createResponseFromPrecursor(p2)).body);
+          const generators = precursors.map((p2) => async () => (await this.createResponseFromPrecursor(p2, clientId)).body);
           result.body = mergeStream(generators);
         }
         return result;
@@ -13186,7 +13333,7 @@ var Responser = class _Responser extends EventTarget22 {
           if (size === written) clearInterval(interval);
         }, 500);
       }
-      this.storage.set(uurl.id, (request) => {
+      this.storage.set(uurl.id, (request, clientId) => {
         const headers = getDownloadHeader(name);
         if (size > 0n) headers["Content-Length"] = size.toString();
         const result = { reuse, headers };
@@ -13194,16 +13341,33 @@ var Responser = class _Responser extends EventTarget22 {
           abortController.abort("ZipRequestNewlyInitiated");
           abortController = new AbortController();
           written = 0;
-          const source = this.zipSource(zip.entries, request.signal);
+          const source = this.zipSource(zip.entries, clientId, request.signal);
           result.body = N(source, { buffersAreUTF8: true }).pipeThrough(lengthCallback((delta) => written += delta), { signal: abortController.signal });
         }
         return result;
       });
       return uurl;
     });
-    this.messenger.response("unzip", async (unzip) => {
+    const unzipClients = /* @__PURE__ */ new Map();
+    setInterval(async () => {
+      const orphans = [];
+      for (let key of await caches.keys()) {
+        const clientIds = unzipClients.get(key);
+        if (clientIds) {
+          for (let clientId of clientIds) {
+            const client = await self.clients.get(clientId);
+            if (!client) clientIds.delete(clientId);
+          }
+          if (clientIds.size > 0) continue;
+        }
+        if (key.startsWith(UNZIP_CACHE_NAME)) orphans.push(key);
+      }
+      for (let key of orphans) caches.delete(key);
+    }, 1e3);
+    this.messenger.response("unzip", async (unzip, e2) => {
       const uurl = this.getUniqueURL();
       const precursor = unzip.request;
+      const sourceClientId = e2.source.id;
       const unzipId = unzip.id || uurl.id;
       const password = unzip.password;
       let passwordChecked = false;
@@ -13213,7 +13377,7 @@ var Responser = class _Responser extends EventTarget22 {
       const entryMetaData = {};
       const entryInit = /* @__PURE__ */ new Set();
       const zip = require_zip();
-      const entries = await new zip.fs.FS().importZip(new ResponsifiedReader(this, precursor));
+      const entries = await new zip.fs.FS().importZip(new ResponsifiedReader(this, precursor, sourceClientId));
       for (let entry of entries) {
         if (!entry.data || entry.data.directory) continue;
         if (!passwordChecked && entry.isPasswordProtected()) {
@@ -13236,7 +13400,7 @@ var Responser = class _Responser extends EventTarget22 {
         data["url"] = uurl.url + "&path=" + pathId;
         entryMetaData[name] = data;
       }
-      this.storage.set(uurl.id, async (request) => {
+      this.storage.set(uurl.id, async (request, clientId) => {
         const param = new URL(request.url).searchParams;
         let path = param.get("path");
         if (!path) return { status: 400, body: "Need searchParam - 'path'", reuse: true };
@@ -13273,20 +13437,24 @@ var Responser = class _Responser extends EventTarget22 {
         }
         if (data.compressedSize === data.uncompressedSize && !data.encrypted) {
           if (!entryDataOffset.has(path)) {
-            const view = new Uint8Array(await (await this.createResponseFromPrecursor(precursor, data.offset + 26, 4)).arrayBuffer());
+            const view = new Uint8Array(await (await this.createResponseFromPrecursor(precursor, clientId, data.offset + 26, 4)).arrayBuffer());
             entryDataOffset.set(path, data.offset + 30 + getUint16LE(view, 0) + getUint16LE(view, 2));
           }
           const offset = entryDataOffset.get(path);
-          result.body = (await this.createResponseFromPrecursor(precursor, range.start + offset, range.end - range.start + 1)).body;
+          result.body = (await this.createResponseFromPrecursor(precursor, clientId, range.start + offset, range.end - range.start + 1)).body;
         } else {
-          const bucket = await CacheBucket.new(`${UNZIP_CACHE_NAME}:${unzipId}`);
+          const key = `${UNZIP_CACHE_NAME}:${unzipId}`;
+          const clients = unzipClients.get(key);
+          if (clients) clients.add(clientId);
+          else unzipClients.set(key, /* @__PURE__ */ new Set([sourceClientId, clientId]));
+          const bucket = await CacheBucket.new(key);
           if (!entryInit.has(path)) {
             entryInit.add(path);
             const { readable, writable } = new TransformStream();
             const abortController = new AbortController();
-            data.getData(writable, { password, signal: abortController.signal }).catch((e2) => {
-              if (!e2.startsWith("CacheBucket")) {
-                console.debug("Entry.getData error:", e2);
+            data.getData(writable, { password, signal: abortController.signal }).catch((e3) => {
+              if (!String(e3).startsWith("CacheBucket")) {
+                console.debug("Entry.getData error:", e3);
               }
             });
             bucket.set(path, readable, 0, abortController);
@@ -13303,28 +13471,6 @@ var Responser = class _Responser extends EventTarget22 {
         entries: entryMetaData
       };
     });
-    const unzipRetainMap = /* @__PURE__ */ new Map();
-    self.addEventListener("message", (e2) => {
-      const unzipRetain = e2.data.unzipRetain;
-      if (unzipRetain) {
-        for (let unzipId of unzipRetain) {
-          unzipRetainMap.set(`${UNZIP_CACHE_NAME}:${unzipId}`, Date.now());
-        }
-      }
-    });
-    setInterval(async () => {
-      const keys2 = await caches.keys();
-      const now = Date.now();
-      for (let key of keys2) {
-        const time = unzipRetainMap.get(key);
-        if (time && now - time > 2 * UNZIP_CACHE_RETAIN_INTERVAL) {
-          CacheBucket.drop(key);
-        }
-        if (!time && key.startsWith(UNZIP_CACHE_NAME)) {
-          CacheBucket.drop(key);
-        }
-      }
-    }, 2 * UNZIP_CACHE_RETAIN_INTERVAL);
     this.messenger.response("revoke", (url) => {
       const id = this.parseId(url);
       let result = false;
@@ -13332,24 +13478,24 @@ var Responser = class _Responser extends EventTarget22 {
       return result;
     });
     self.addEventListener("fetch", async (e2) => {
-      const response = this.handleRequest(e2.request);
+      const response = this.handleRequest(e2.request, e2.clientId || e2.resultingClientId);
       if (response) e2.respondWith(response);
     });
   }
-  handleRequest(request) {
+  handleRequest(request, clientId) {
     if (this.parseId(request.url)) {
-      return this.createResponse(request);
+      return this.createResponse(request, clientId);
     }
   }
-  async createResponse(request) {
+  async createResponse(request, clientId) {
     const id = this.parseId(request.url);
     if (this.storage.has(id)) {
-      const responsified = await this.storage.get(id)(request);
+      const responsified = await this.storage.get(id)(request, clientId);
       const { reuse, body, ...init } = responsified;
       if (!reuse) this.storage.delete(id);
       if (responsified.status === 301 || responsified.status === 302) {
         const location2 = responsified.headers.location;
-        return await this.createResponse(new Request(location2, request));
+        return await this.createResponse(new Request(location2, request), clientId);
       }
       return new Response(body, init);
     }
@@ -13364,7 +13510,7 @@ var Responser = class _Responser extends EventTarget22 {
     }
     return await fetch(request);
   }
-  async createResponseFromPrecursor(precursor, at, length) {
+  async createResponseFromPrecursor(precursor, clientId, at, length) {
     const init = {};
     if (at !== void 0 && length) {
       init.method = "GET";
@@ -13372,7 +13518,7 @@ var Responser = class _Responser extends EventTarget22 {
       headers.set("Range", `bytes=${at}-${at + length - 1}`);
       init.headers = Object.fromEntries([...headers]);
     }
-    return this.createResponse(precursor2request(precursor, init));
+    return this.createResponse(precursor2request(precursor, init), clientId);
   }
   parseId(url) {
     url = new URL(url);
@@ -13387,7 +13533,7 @@ var Responser = class _Responser extends EventTarget22 {
       url: `${location.origin}${this.path}?id=${id}`
     };
   }
-  async *zipSource(entries, signal) {
+  async *zipSource(entries, clientId, signal) {
     const controller = new AbortController();
     const mergedSignal = signal ? mergeSignal(controller.signal, signal) : controller.signal;
     const promises = entries.map((entry) => {
@@ -13395,7 +13541,7 @@ var Responser = class _Responser extends EventTarget22 {
         return {
           name: entry.name,
           size: entry.size,
-          input: (await this.createResponse(precursor2request(entry.request, { signal: mergedSignal }))).body
+          input: (await this.createResponse(precursor2request(entry.request, { signal: mergedSignal }), clientId)).body
         };
       };
     });
@@ -13438,155 +13584,6 @@ function nestRange(parentRange, childRange, parentLength) {
   child.start += parent.start;
   if (child.end > 0) child.end += parent.start;
   return `bytes=${child.start}-${child.end > 0 ? child.end : parent.end > 0 ? parent.end : ""}`;
-}
-
-// src/client.ts
-var Responsify = class _Responsify {
-  constructor() {
-    this.reserved = /* @__PURE__ */ new Map();
-    // unzip
-    this.unzipRetain = /* @__PURE__ */ new Set();
-    this.messenger = MessengerFactory.new(navigator.serviceWorker);
-    this.messenger.response("reserved", async ({ id, precursor }) => {
-      const responsified = this.reserved.get(id);
-      if (responsified) {
-        const result = await responsified(precursor2request(precursor));
-        if (result.body instanceof ReadableStream) {
-          return { payload: result, transfer: [result.body] };
-        }
-        return result;
-      } else {
-        return { reuse: false, status: 404 };
-      }
-    });
-    setInterval(() => {
-      window.navigator.serviceWorker.controller?.postMessage({ unzipRetain: Array.from(this.unzipRetain) });
-    }, UNZIP_CACHE_RETAIN_INTERVAL);
-  }
-  static get instance() {
-    if (!this._instance) this._instance = new _Responsify();
-    return this._instance;
-  }
-  // reserve (promised) window-created response and forward to service worker future
-  static async reserve(generator, reuse, timeout = 5 * 60 * 1e3) {
-    const result = await this.instance.messenger.request("reserve", timeout);
-    this.instance.reserved.set(result.id, async (request) => {
-      if (!reuse) this.instance.reserved.delete(result.id);
-      return responsify(await generator(request), { reuse });
-    });
-    return result.url;
-  }
-  // store request-precursor in service-worker and get response future
-  static async store(precursor) {
-    return (await this.instance.messenger.request("store", precursor)).url;
-  }
-  // forward window-created response to service worker
-  static async forward(responsified) {
-    let transfer = void 0;
-    if (responsified.body instanceof ReadableStream) {
-      transfer = [responsified.body];
-    }
-    return (await this.instance.messenger.request("forward", responsified, transfer)).url;
-  }
-  // merge multiple requests to single-ranged request
-  static async merge(merge) {
-    return (await this.instance.messenger.request("merge", merge)).url;
-  }
-  // zip multiple requests
-  static async zip(zip) {
-    return (await this.instance.messenger.request("zip", zip)).url;
-  }
-  static async unzip(unzip, timeout = 5 * 60 * 1e3, promptPassword = unzipPromptPassword) {
-    let result = void 0;
-    let isFirst = true;
-    while (!result || result.passwordNeed) {
-      result = await this.instance.messenger.request("unzip", unzip, void 0, timeout);
-      if (result.passwordNeed) {
-        unzip.password = await promptPassword(isFirst);
-        isFirst = false;
-      }
-    }
-    this.instance.unzipRetain.add(result.unzipId);
-    return {
-      url: result.url,
-      entries: result.entries
-    };
-  }
-  // revoke
-  static async revoke(url) {
-    return await this.instance.messenger.request("revoke", url);
-  }
-};
-function unzipPromptPassword(isFirst) {
-  let password;
-  if (isFirst) {
-    password = prompt("This file is encrypted. Please enter the password.");
-  } else {
-    password = prompt("The password does not match. Please check the password.");
-  }
-  if (!password) {
-    return unzipPromptPassword(false);
-  }
-  return password;
-}
-async function responsify(responsifiable, init) {
-  switch (responsifiable.constructor) {
-    case ReadableStream:
-      return responsifyStream(responsifiable, init);
-    case Request:
-      return responsifyRequest(responsifiable, init);
-    case Response:
-      return responsifyResponse(responsifiable, init);
-    case String:
-    case URL:
-      return responsifyResponse(Response.redirect(responsifiable, 301), init);
-    default:
-      return responsifyResponse(new Response(responsifiable), init);
-  }
-}
-async function responsifyRequest(request, init) {
-  return responsifyResponse(await fetch(request), init);
-}
-function responsifyResponse(response, init) {
-  return {
-    reuse: init?.reuse || false,
-    body: response.body || void 0,
-    headers: init?.headers || Object.fromEntries([...response.headers]),
-    status: init?.status || response.status,
-    statusText: init?.statusText || response.statusText
-  };
-}
-function responsifyStream(stream, init) {
-  return Object.assign({ body: stream }, init);
-}
-function request2precursor(request) {
-  return {
-    url: request.url,
-    body: request.body || void 0,
-    cache: request.cache,
-    credentials: request.credentials,
-    headers: Object.fromEntries([...request.headers]),
-    integrity: request.integrity,
-    keepalive: request.keepalive,
-    method: request.method,
-    mode: request.mode,
-    //priority: request.priority,
-    redirect: request.redirect,
-    referrer: request.referrer,
-    referrerPolicy: request.referrerPolicy
-  };
-}
-function precursor2request(precursor, additionalInit) {
-  let { url, ...init } = precursor;
-  if (init.mode === "navigate") {
-    init.mode = "same-origin";
-  }
-  if ("reuse" in init) {
-    const { reuse, ..._init } = init;
-    init = _init;
-  }
-  if (additionalInit) Object.assign(init, additionalInit);
-  return new Request(url, init);
 }
 export {
   Responser,

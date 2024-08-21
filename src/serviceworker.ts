@@ -8,11 +8,10 @@ import { getUint16LE, ResponsifiedReader } from "./zip"
 import { base, base64URLdecode, base64URLencode, getDownloadHeader, mergeSignal, randomUUID, structuredClonePolyfill } from "./utils"
 import { CacheBucket } from "./cache"
 
-export type ResponsifiedGenerator = (request: Request) => Responsified | PromiseLike<Responsified>
+export type ResponsifiedGenerator = (request: Request, clientId: string) => Responsified | PromiseLike<Responsified>
 
 export const UNZIP_CACHE_CHUNK_SIZE = 10 * 1024 * 1024 // 10MiB
 export const UNZIP_CACHE_NAME = "service-worker-responsify-unzip-cache"
-export const UNZIP_CACHE_RETAIN_INTERVAL = 10 * 1000
 
 
 export class Responser extends EventTarget2 {
@@ -44,7 +43,7 @@ export class Responser extends EventTarget2 {
         // store
         this.messenger.response<RequestPrecursorExtended, ResponsifyResponse>("store", (precursor) => {
             const uurl = this.getUniqueURL()
-            this.storage.set(uurl.id, async (childRequest: Request) => {
+            this.storage.set(uurl.id, async (childRequest: Request, clientId: string) => {
                 // GET, HEAD method sync
                 const parentRequest = precursor2request(precursor, { method: childRequest.method })
                 // nest Range header
@@ -55,7 +54,7 @@ export class Responser extends EventTarget2 {
                     if (parentRange) range = nestRange(parentRange, childRange);
                     parentRequest.headers.set("Range", range)
                 }
-                let response = await this.createResponse(parentRequest)
+                let response = await this.createResponse(parentRequest, clientId)
                 if (parentRange && childRange && response.status === 206) {
                     const offset = parseRange(parentRange).start
                     const total = getRangeLength(parentRange)
@@ -149,7 +148,7 @@ export class Responser extends EventTarget2 {
             const lastPart = parts[parts.length - 1]
             const total = init.length || (lastPart.length ? lastPart.index + lastPart.length : undefined)
 
-            this.storage.set(uurl.id, (request: Request) => {
+            this.storage.set(uurl.id, (request: Request, clientId: string) => {
                 const result: Responsified = structuredClonePolyfill(init)
                 result.body = undefined
                 result.headers = result.headers || {}
@@ -223,7 +222,7 @@ export class Responser extends EventTarget2 {
                 }
 
                 if (request.method === "GET") { // GET request, add body
-                    const generators = precursors.map((p) => async () => (await this.createResponseFromPrecursor(p)).body!)
+                    const generators = precursors.map((p) => async () => (await this.createResponseFromPrecursor(p, clientId)).body!)
                     result.body = mergeStream(generators)
                 }
 
@@ -255,7 +254,7 @@ export class Responser extends EventTarget2 {
                     if (size === written) clearInterval(interval);
                 }, 500);
             }
-            this.storage.set(uurl.id, (request) => { // zipping files
+            this.storage.set(uurl.id, (request, clientId) => { // zipping files
                 const headers = getDownloadHeader(name)
                 if (size > 0n) headers["Content-Length"] = size.toString();
                 const result: Responsified = { reuse, headers }
@@ -263,7 +262,7 @@ export class Responser extends EventTarget2 {
                     abortController.abort("ZipRequestNewlyInitiated")
                     abortController = new AbortController()
                     written = 0
-                    const source = this.zipSource(zip.entries, request.signal)
+                    const source = this.zipSource(zip.entries, clientId, request.signal)
                     result.body = makeZip(source, { buffersAreUTF8: true }).pipeThrough(lengthCallback((delta) => written += delta), { signal: abortController.signal })
                 }
                 return result
@@ -272,9 +271,26 @@ export class Responser extends EventTarget2 {
         })
 
         // unzip
-        this.messenger.response<UnzipRequest, UnzipResponse>("unzip", async (unzip) => {
+        const unzipClients: Map<string, Set<string>> = new Map()
+        setInterval(async () => {
+            const orphans: Array<string> = []
+            for (let key of await caches.keys()) {
+                const clientIds = unzipClients.get(key)
+                if (clientIds) {
+                    for (let clientId of clientIds) {
+                        const client = await self.clients.get(clientId)
+                        if (!client) clientIds.delete(clientId);
+                    }
+                    if (clientIds.size > 0) continue;
+                }
+                if (key.startsWith(UNZIP_CACHE_NAME)) orphans.push(key);
+            }
+            for (let key of orphans) caches.delete(key)
+        }, 1000);
+        this.messenger.response<UnzipRequest, UnzipResponse>("unzip", async (unzip, e) => {
             const uurl = this.getUniqueURL()
             const precursor = unzip.request
+            const sourceClientId = (e.source as unknown as Client).id
             const unzipId = unzip.id || uurl.id
             const password = unzip.password
             let passwordChecked = false
@@ -284,7 +300,7 @@ export class Responser extends EventTarget2 {
             const entryMetaData: Record<string, EntryMetadataHttp> = {}
             const entryInit: Set<string> = new Set()
             const zip = require("@zip.js/zip.js")
-            const entries = await new zip.fs.FS().importZip(new ResponsifiedReader(this, precursor))
+            const entries = await new zip.fs.FS().importZip(new ResponsifiedReader(this, precursor, sourceClientId))
 
             for (let entry of entries) { //
                 if (!entry.data || entry.data.directory) continue;
@@ -312,7 +328,7 @@ export class Responser extends EventTarget2 {
                 entryMetaData[name] = data as EntryMetadataHttp
             }
 
-            this.storage.set(uurl.id, async (request) => {
+            this.storage.set(uurl.id, async (request, clientId) => {
                 const param = (new URL(request.url)).searchParams
                 let path = param.get("path")
                 if (!path) return { status: 400, body: "Need searchParam - 'path'", reuse: true }
@@ -352,19 +368,24 @@ export class Responser extends EventTarget2 {
                 }
                 if (data.compressedSize === data.uncompressedSize && !data.encrypted) { // seekable
                     if (!entryDataOffset.has(path)) {
-                        const view = new Uint8Array(await (await this.createResponseFromPrecursor(precursor, data.offset + 26, 4)).arrayBuffer())
+                        const view = new Uint8Array(await (await this.createResponseFromPrecursor(precursor, clientId, data.offset + 26, 4)).arrayBuffer())
                         entryDataOffset.set(path, data.offset + 30 + getUint16LE(view, 0) + getUint16LE(view, 2))
                     }
                     const offset = entryDataOffset.get(path)!
-                    result.body = (await this.createResponseFromPrecursor(precursor, range.start + offset, range.end - range.start + 1)).body!
+                    result.body = (await this.createResponseFromPrecursor(precursor, clientId, range.start + offset, range.end - range.start + 1)).body!
                 } else { // unseekable, cacheStorage need
-                    const bucket = await CacheBucket.new(`${UNZIP_CACHE_NAME}:${unzipId}`)
+                    const key = `${UNZIP_CACHE_NAME}:${unzipId}`
+                    const clients = unzipClients.get(key)
+                    if (clients) clients.add(clientId);
+                    else unzipClients.set(key, new Set([sourceClientId, clientId]));
+                    const bucket = await CacheBucket.new(key)
+
                     if (!entryInit.has(path)) {
                         entryInit.add(path)
                         const { readable, writable } = new TransformStream()
                         const abortController = new AbortController()
                         data.getData!(writable, { password, signal: abortController.signal }).catch((e) => {
-                            if (!e.startsWith("CacheBucket")) {
+                            if (!String(e).startsWith("CacheBucket")) {
                                 console.debug("Entry.getData error:", e)
                             }
                         })
@@ -382,28 +403,6 @@ export class Responser extends EventTarget2 {
                 entries: entryMetaData
             }
         })
-        const unzipRetainMap: Map<string, number> = new Map()
-        self.addEventListener("message", (e: ExtendableMessageEvent) => {
-            const unzipRetain = e.data.unzipRetain
-            if (unzipRetain) {
-                for (let unzipId of unzipRetain) {
-                    unzipRetainMap.set(`${UNZIP_CACHE_NAME}:${unzipId}`, Date.now())
-                }
-            }
-        })
-        setInterval(async () => {
-            const keys = await caches.keys()
-            const now = Date.now()
-            for (let key of keys) {
-                const time = unzipRetainMap.get(key)
-                if (time && now - time > 2 * UNZIP_CACHE_RETAIN_INTERVAL) {
-                    CacheBucket.drop(key)
-                }
-                if (!time && key.startsWith(UNZIP_CACHE_NAME)) {
-                    CacheBucket.drop(key)
-                }
-            }
-        }, 2 * UNZIP_CACHE_RETAIN_INTERVAL)
 
         // revoke
         this.messenger.response<string, boolean>("revoke", (url) => {
@@ -415,26 +414,26 @@ export class Responser extends EventTarget2 {
 
         // handleRequest
         self.addEventListener("fetch", async (e: FetchEvent) => {
-            const response = this.handleRequest(e.request)
+            const response = this.handleRequest(e.request, e.clientId || e.resultingClientId)
             if (response) e.respondWith(response);
         })
     }
 
-    handleRequest(request: Request) {
+    handleRequest(request: Request, clientId: string) {
         if (this.parseId(request.url)) {
-            return this.createResponse(request)
+            return this.createResponse(request, clientId)
         }
     }
 
-    async createResponse(request: Request): Promise<Response> {
+    async createResponse(request: Request, clientId: string): Promise<Response> {
         const id = this.parseId(request.url)!
         if (this.storage.has(id)) {
-            const responsified = await this.storage.get(id)!(request)
+            const responsified = await this.storage.get(id)!(request, clientId)
             const { reuse, body, ...init } = responsified
             if (!reuse) this.storage.delete(id);
             if (responsified.status === 301 || responsified.status === 302) { // redirect
                 const location = responsified.headers!.location!
-                return await this.createResponse(new Request(location, request))
+                return await this.createResponse(new Request(location, request), clientId)
             }
             return new Response(body, init)
         }
@@ -450,7 +449,7 @@ export class Responser extends EventTarget2 {
         return await fetch(request)
     }
 
-    async createResponseFromPrecursor(precursor: RequestPrecursor | RequestPrecursorWithStream | RequestPrecursorExtended, at?: number, length?: number) {
+    async createResponseFromPrecursor(precursor: RequestPrecursor | RequestPrecursorWithStream | RequestPrecursorExtended, clientId: string, at?: number, length?: number) {
         const init: RequestInit = {}
         if (at !== undefined && length) {
             init.method = "GET"
@@ -458,7 +457,7 @@ export class Responser extends EventTarget2 {
             headers.set("Range", `bytes=${at}-${at + length - 1}`)
             init.headers = Object.fromEntries([...headers])
         }
-        return this.createResponse(precursor2request(precursor, init))
+        return this.createResponse(precursor2request(precursor, init), clientId)
     }
 
     parseId(url: string | URL) {
@@ -476,7 +475,7 @@ export class Responser extends EventTarget2 {
         }
     }
 
-    async* zipSource(entries: Array<ZipEntryRequest>, signal?: AbortSignal) {
+    async* zipSource(entries: Array<ZipEntryRequest>, clientId: string, signal?: AbortSignal) {
         const controller = new AbortController();
         const mergedSignal = signal ? mergeSignal(controller.signal, signal) : controller.signal;
         const promises = entries.map((entry) => {
@@ -484,7 +483,7 @@ export class Responser extends EventTarget2 {
                 return {
                     name: entry.name,
                     size: entry.size,
-                    input: (await this.createResponse(precursor2request(entry.request, { signal: mergedSignal }))).body!
+                    input: (await this.createResponse(precursor2request(entry.request, { signal: mergedSignal }), clientId)).body!
                 };
             };
         });

@@ -11,7 +11,7 @@ export declare class CacheBucket extends EventTarget2 {
     static buckets: Map<string, CacheBucket>;
     private constructor();
     static new(id: string, chunkSize?: number): Promise<CacheBucket>;
-    static drop(id: string): Promise<void>;
+    static drop(bucket: CacheBucket): Promise<void>;
     init(): Promise<void>;
     pathNumber(path: string, number: number): string;
     set(path: string, data: ReadableStream<Uint8Array>, at?: number, abortController?: AbortController): Promise<void>;

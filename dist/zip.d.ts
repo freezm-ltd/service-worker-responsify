@@ -4,7 +4,8 @@ import { RequestPrecursorExtended } from "./client";
 export declare class ResponsifiedReader implements Initializable, ReadableReader {
     readonly responser: Responser;
     readonly precursor: RequestPrecursorExtended;
-    constructor(responser: Responser, precursor: RequestPrecursorExtended);
+    readonly clientId: string;
+    constructor(responser: Responser, precursor: RequestPrecursorExtended, clientId: string);
     get readable(): ReadableStream<any>;
     size: number | undefined;
     init(): Promise<void>;

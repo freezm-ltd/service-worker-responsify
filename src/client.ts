@@ -1,6 +1,5 @@
 import { Messenger, MessengerFactory } from "@freezm-ltd/post-together"
 import { EntryMetaData } from "@zip.js/zip.js"
-import { UNZIP_CACHE_RETAIN_INTERVAL } from "./serviceworker"
 
 export type Responsifiable = ReadableStream<Uint8Array> | Request | Response | BufferSource | Blob | URL | string
 export type ResponsifiableGenerator = (request: Request) => PromiseLike<Responsifiable>
@@ -97,9 +96,6 @@ export class Responsify {
                 return { reuse: false, status: 404 }
             }
         })
-        setInterval(() => { // retain unzip cache
-            window.navigator.serviceWorker.controller?.postMessage({ unzipRetain: Array.from(this.unzipRetain) })
-        }, UNZIP_CACHE_RETAIN_INTERVAL)
     }
 
     protected static get instance() {

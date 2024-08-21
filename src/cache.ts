@@ -25,9 +25,10 @@ export class CacheBucket extends EventTarget2 {
         return bucket
     }
 
-    static async drop(id: string) {
-        if (await caches.has(id)) {
-            const cache = await caches.open(id)
+    static async drop(bucket: CacheBucket) {
+        const id = bucket.id
+        const cache = bucket.cache
+        if (cache) {
             for (let key of await cache.keys()) await cache.delete(key);
             await caches.delete(id)
         }
@@ -74,7 +75,7 @@ export class CacheBucket extends EventTarget2 {
             if (done) break;
             if (deleted) {
                 abortController?.abort("CacheBucket: expired")
-                CacheBucket.drop(this.id)
+                CacheBucket.drop(this)
                 break
             }
 
