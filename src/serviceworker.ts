@@ -285,7 +285,11 @@ export class Responser extends EventTarget2 {
                 }
                 if (key.startsWith(UNZIP_CACHE_NAME)) orphans.push(key);
             }
-            for (let key of orphans) caches.delete(key)
+            for (let key of orphans) {
+                const cache = await caches.open(key)
+                for (let key of await cache.keys()) await cache.delete(key);
+                caches.delete(key)
+            }
         }, 1000);
         this.messenger.response<UnzipRequest, UnzipResponse>("unzip", async (unzip, e) => {
             const uurl = this.getUniqueURL()
@@ -488,7 +492,7 @@ export class Responser extends EventTarget2 {
         }
     }
 
-    async* zipSource(entries: Array<ZipEntryRequest>, clientId: string, signal?: AbortSignal) {
+    async * zipSource(entries: Array<ZipEntryRequest>, clientId: string, signal?: AbortSignal) {
         const controller = new AbortController();
         const mergedSignal = signal ? mergeSignal(controller.signal, signal) : controller.signal;
         const promises = entries.map((entry) => {
