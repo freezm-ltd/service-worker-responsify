@@ -12089,7 +12089,7 @@ function unzipPromptPassword(isFirst) {
     password = prompt("The password does not match. Please check the password.");
   }
   if (!password) {
-    return unzipPromptPassword(false);
+    throw new Error("PasswordInputCanceled");
   }
   return password;
 }

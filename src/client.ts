@@ -170,7 +170,7 @@ function unzipPromptPassword(isFirst: boolean) {
         password = prompt("The password does not match. Please check the password.")
     }
     if (!password) {
-        return unzipPromptPassword(false)
+        throw new Error("PasswordInputCanceled")
     }
     return password
 }
