@@ -13412,6 +13412,16 @@ var Responser = class _Responser extends EventTarget22 {
         const entry = entryMap.get(path);
         if (!entry) return { status: 404, body: "Entry not found", reuse: true };
         const data = entry.data;
+        if (data.uncompressedSize === 0) {
+          const headers = getDownloadHeader(base(data.filename));
+          headers["Content-Length"] = "0";
+          return {
+            reuse: true,
+            body: new Uint8Array(0),
+            headers,
+            status: 200
+          };
+        }
         const range = { start: 0, end: data.uncompressedSize - 1 };
         const isRanged = request.headers.has("Range");
         if (isRanged) {
@@ -13551,12 +13561,13 @@ var Responser = class _Responser extends EventTarget22 {
   async *zipSource(entries, clientId, signal) {
     const controller = new AbortController();
     const mergedSignal = signal ? mergeSignal(controller.signal, signal) : controller.signal;
-    const promises = entries.map((entry) => {
+    const promises = entries.map(({ name, size, request }) => {
       return async () => {
+        if (size === 0) return { name, size, input: new ArrayBuffer(0) };
         return {
-          name: entry.name,
-          size: entry.size,
-          input: (await this.createResponse(precursor2request(entry.request, { signal: mergedSignal }), clientId)).body
+          name,
+          size,
+          input: (await this.createResponse(precursor2request(request, { signal: mergedSignal }), clientId)).body
         };
       };
     });

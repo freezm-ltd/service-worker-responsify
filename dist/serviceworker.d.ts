@@ -21,6 +21,10 @@ export declare class Responser extends EventTarget2 {
     };
     zipSource(entries: Array<ZipEntryRequest>, clientId: string, signal?: AbortSignal): AsyncGenerator<{
         name: string;
+        size: number;
+        input: ArrayBuffer;
+    } | {
+        name: string;
         size: number | undefined;
         input: ReadableStream<Uint8Array>;
     }, void, unknown>;
