@@ -238,7 +238,7 @@ export class Responser extends EventTarget2 {
             const reuse = zip.entries.every(entry => entry.request.reuse)
             const name = zip.name.toLowerCase().lastIndexOf(".zip") === zip.name.length - 4 ? zip.name : zip.name + ".zip"
             let size = 0
-            if (zip.entries.every(entry => !!entry.size)) {
+            if (zip.entries.every(entry => entry.size !== undefined)) {
                 try { // try predict length
                     size = Number(predictLength(zip.entries.map(entry => {
                         return { name: entry.name, size: entry.size! }
