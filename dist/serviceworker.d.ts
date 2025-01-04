@@ -13,7 +13,7 @@ export declare class Responser extends EventTarget2 {
     protected constructor();
     handleRequest(request: Request, clientId: string): Promise<Response> | undefined;
     createResponse(request: Request, clientId: string): Promise<Response>;
-    createResponseFromPrecursor(precursor: RequestPrecursor | RequestPrecursorWithStream | RequestPrecursorExtended, clientId: string, at?: number, length?: number): Promise<Response>;
+    createResponseFromPrecursor(precursor: RequestPrecursor | RequestPrecursorWithStream | RequestPrecursorExtended, clientId: string, at?: number, length?: number, signal?: AbortSignal): Promise<Response>;
     parseId(url: string | URL): string | null;
     getUniqueURL(): {
         id: string;

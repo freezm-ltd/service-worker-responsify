@@ -13591,7 +13591,7 @@ var Responser = class _Responser extends EventTarget22 {
           if (total) result.headers["Content-Length"] = total.toString();
         }
         if (request.method === "GET") {
-          const sourceGen = () => precursors.map((p2) => async () => (await this.createResponseFromPrecursor(p2, clientId)).body);
+          const sourceGen = () => precursors.map((p2) => async (context, signal2) => (await this.createResponseFromPrecursor(p2, clientId, void 0, void 0, signal2)).body);
           const url = new URL(request.url);
           const signal = request.signal;
           const { start, end } = contentRange;
@@ -13840,8 +13840,8 @@ var Responser = class _Responser extends EventTarget22 {
     }
     return await fetch(request);
   }
-  async createResponseFromPrecursor(precursor, clientId, at, length) {
-    const init = {};
+  async createResponseFromPrecursor(precursor, clientId, at, length, signal) {
+    const init = { signal };
     if (at !== void 0 && length) {
       init.method = "GET";
       const headers = new Headers(precursor.headers);

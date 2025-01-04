@@ -8,6 +8,7 @@ import { getUint16LE, ResponsifiedReader } from "./zip"
 import { base, getDownloadHeader, mergeSignal, randomUUID, structuredClonePolyfill } from "./utils"
 import { CacheBucket } from "./cache"
 import { StreamBuffer } from "./stream"
+import { StreamGenerator } from "node_modules/@freezm-ltd/stream-utils/dist/repipe.ts"
 
 export type ResponsifiedGenerator = (request: Request, clientId: string) => Responsified | PromiseLike<Responsified>
 
@@ -223,7 +224,7 @@ export class Responser extends EventTarget2 {
                 }
 
                 if (request.method === "GET") { // GET request, add body
-                    const sourceGen = () => precursors.map((p) => async () => (await this.createResponseFromPrecursor(p, clientId)).body!)
+                    const sourceGen = (): StreamGenerator<ReadableStream<Uint8Array<ArrayBufferLike>>>[] => precursors.map((p) => async (context, signal) => (await this.createResponseFromPrecursor(p, clientId, undefined, undefined, signal)).body!)
 
                     const url = new URL(request.url)
                     const signal = request.signal
@@ -500,8 +501,8 @@ export class Responser extends EventTarget2 {
         return await fetch(request)
     }
 
-    async createResponseFromPrecursor(precursor: RequestPrecursor | RequestPrecursorWithStream | RequestPrecursorExtended, clientId: string, at?: number, length?: number) {
-        const init: RequestInit = {}
+    async createResponseFromPrecursor(precursor: RequestPrecursor | RequestPrecursorWithStream | RequestPrecursorExtended, clientId: string, at?: number, length?: number, signal?: AbortSignal) {
+        const init: RequestInit = { signal }
         if (at !== undefined && length) {
             init.method = "GET"
             const headers = new Headers(precursor.headers)
