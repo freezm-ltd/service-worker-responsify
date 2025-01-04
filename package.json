@@ -32,15 +32,16 @@
         "@freezm-ltd/event-target-2": "github:freezm-ltd/EventTarget2",
         "@freezm-ltd/post-together": "github:freezm-ltd/post-together",
         "@freezm-ltd/stream-utils": "github:freezm-ltd/stream-utils",
-        "@ungap/structured-clone": "^1.2.0",
-        "@zip.js/zip.js": "^2.7.48",
-        "client-zip": "^2.4.5"
+        "@ungap/structured-clone": "^1.2.1",
+        "@zip.js/zip.js": "^2.7.54",
+        "client-zip": "^2.4.6"
     },
     "devDependencies": {
         "@types/serviceworker": "^0.0.89",
         "@types/ungap__structured-clone": "^1.2.0",
-        "esbuild": "^0.23.0",
-        "tslib": "^2.6.3",
-        "typescript": "^5.5.4"
-    }
+        "esbuild": "^0.23.1",
+        "tslib": "^2.8.1",
+        "typescript": "^5.7.2"
+    },
+    "packageManager": "pnpm@9.13.2+sha512.88c9c3864450350e65a33587ab801acf946d7c814ed1134da4a924f6df5a2120fd36b46aab68f7cd1d413149112d53c7db3a4136624cfd00ff1846a0c6cef48a"
 }

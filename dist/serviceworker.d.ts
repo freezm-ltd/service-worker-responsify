@@ -26,7 +26,7 @@ export declare class Responser extends EventTarget2 {
     } | {
         name: string;
         size: number | undefined;
-        input: ReadableStream<Uint8Array>;
+        input: ReadableStream<Uint8Array<ArrayBufferLike>>;
     }, void, unknown>;
     static activate(): void;
 }

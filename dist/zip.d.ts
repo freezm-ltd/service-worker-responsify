@@ -9,6 +9,6 @@ export declare class ResponsifiedReader implements Initializable, ReadableReader
     get readable(): ReadableStream<any>;
     size: number | undefined;
     init(): Promise<void>;
-    readUint8Array(index: number, length: number): Promise<Uint8Array>;
+    readUint8Array(index: number, length: number): Promise<Uint8Array<ArrayBuffer>>;
 }
 export declare function getUint16LE(uint8View: Uint8Array, offset: number): number;

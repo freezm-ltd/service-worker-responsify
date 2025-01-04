@@ -125,7 +125,7 @@ export class Responser extends EventTarget2 {
                             result.body = result.body.pipeThrough(sliceByteStream(start, end < 0 ? undefined : (end + 1)))
                         } else {
                             if ("buffer" in (result.body as ArrayBufferView)) {
-                                result.body = (result.body as ArrayBufferView).buffer
+                                result.body = (result.body as ArrayBufferView).buffer as ArrayBuffer
                             }
                             result.body = (result.body as any).slice(start, end + 1)
                         }
@@ -222,8 +222,28 @@ export class Responser extends EventTarget2 {
                 }
 
                 if (request.method === "GET") { // GET request, add body
-                    const generators = precursors.map((p) => async () => (await this.createResponseFromPrecursor(p, clientId)).body!)
-                    result.body = mergeStream(generators)
+                    const sourceGen = () => precursors.map((p) => async () => (await this.createResponseFromPrecursor(p, clientId)).body!)
+                    precursors.map((p) => async () => (await this.createResponseFromPrecursor(p, clientId)).body!)
+
+                    const url = new URL(request.url)
+                    const signal = request.signal
+
+                    if (url.searchParams.get("buffer") === "true") { // stream buffer
+                        // check cache
+                        let stream = StreamBuffer.get(uurl.id, contentRange, signal)
+                        if (stream) result.body = stream
+                        else {
+                            // cache
+                            result.body = StreamBuffer.set(uurl.id, contentRange, (signal) => mergeStream(sourceGen(), undefined, { signal }), {
+                                signal,
+                                lifespan: url.searchParams.has("lifespan") ? Number(url.searchParams.get("lifespan")) : undefined,
+                                waitSizeMax: url.searchParams.has("waitSizeMax") ? Number(url.searchParams.get("waitSizeMax")) : undefined,
+                                inspectDuration: url.searchParams.has("inspectDuration") ? Number(url.searchParams.get("inspectDuration")) : undefined,
+                            })
+                        }
+                    } else { // normal
+                        result.body = mergeStream(sourceGen(), undefined, { signal })
+                    }
                 }
 
                 return result
