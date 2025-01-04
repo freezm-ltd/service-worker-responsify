@@ -13667,10 +13667,9 @@ var Responser = class _Responser extends EventTarget22 {
         }
         if (key.startsWith(UNZIP_CACHE_NAME)) orphans.push(key);
       }
+      console.debug(unzipClients, orphans);
       for (let key of orphans) {
-        const cache = await caches.open(key);
-        for (let key2 of await cache.keys()) await cache.delete(key2);
-        caches.delete(key);
+        CacheBucket.drop(await CacheBucket.new(key));
       }
     }, 1e3);
     this.messenger.response("unzip", async (unzip, e2) => {
