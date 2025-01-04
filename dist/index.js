@@ -13667,9 +13667,9 @@ var Responser = class _Responser extends EventTarget22 {
         }
         if (key.startsWith(UNZIP_CACHE_NAME)) orphans.push(key);
       }
-      console.debug(unzipClients, orphans);
       for (let key of orphans) {
         CacheBucket.drop(await CacheBucket.new(key));
+        unzipClients.delete(key);
       }
     }, 1e3);
     this.messenger.response("unzip", async (unzip, e2) => {
@@ -13766,6 +13766,7 @@ var Responser = class _Responser extends EventTarget22 {
           if (clients) clients.add(clientId);
           else unzipClients.set(key, /* @__PURE__ */ new Set([sourceClientId, clientId]));
           const bucket = await CacheBucket.new(key);
+          const safePath = encodeURIComponent(path);
           if (!entryInit.has(path)) {
             entryInit.add(path);
             const { readable, writable } = new TransformStream();
@@ -13775,9 +13776,9 @@ var Responser = class _Responser extends EventTarget22 {
                 console.debug("Entry.getData error:", e3);
               }
             });
-            bucket.set(path, readable, 0, abortController);
+            bucket.set(safePath, readable, 0, abortController);
           }
-          result.body = await bucket.get(path, range.start, range.end - range.start + 1);
+          result.body = await bucket.get(safePath, range.start, range.end - range.start + 1);
         }
         let broadcast = param.get("broadcast");
         if (broadcast) {
