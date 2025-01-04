@@ -1,4 +1,3 @@
-
 type ByteRange = { start: number, end: number, current?: number }
 type Source = (signal?: AbortSignal) => ReadableStream<Uint8Array>
 type Receiver = (done: boolean, chunk?: Uint8Array, position?: number) => boolean
@@ -31,7 +30,6 @@ export class StreamBuffer {
 		const buffer = new this(key, range, source, option)
 		if (buffers) buffers.push(buffer);
 		else this.storage.set(key, [buffer]);
-		console.log(buffers?.length)
 		return buffer.read(range, option?.signal)
 	}
 

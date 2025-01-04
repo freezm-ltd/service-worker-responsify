@@ -13287,7 +13287,6 @@ var _StreamBuffer = class _StreamBuffer {
     const buffer = new this(key, range, source, option);
     if (buffers) buffers.push(buffer);
     else this.storage.set(key, [buffer]);
-    console.log(buffers?.length);
     return buffer.read(range, option?.signal);
   }
   // 4MiB
@@ -13593,14 +13592,16 @@ var Responser = class _Responser extends EventTarget22 {
         }
         if (request.method === "GET") {
           const sourceGen = () => precursors.map((p2) => async () => (await this.createResponseFromPrecursor(p2, clientId)).body);
-          precursors.map((p2) => async () => (await this.createResponseFromPrecursor(p2, clientId)).body);
           const url = new URL(request.url);
           const signal = request.signal;
+          const { start, end } = contentRange;
+          const index = { start, end: end + 1 };
           if (url.searchParams.get("buffer") === "true") {
-            let stream = StreamBuffer.get(uurl.id, contentRange, signal);
+            let stream = StreamBuffer.get(uurl.id, index, signal);
             if (stream) result.body = stream;
             else {
-              result.body = StreamBuffer.set(uurl.id, contentRange, (signal2) => mergeStream(sourceGen(), void 0, { signal: signal2 }), {
+              const sources = sourceGen();
+              result.body = StreamBuffer.set(uurl.id, index, (signal2) => mergeStream(sources, void 0, { signal: signal2 }), {
                 signal,
                 lifespan: url.searchParams.has("lifespan") ? Number(url.searchParams.get("lifespan")) : void 0,
                 waitSizeMax: url.searchParams.has("waitSizeMax") ? Number(url.searchParams.get("waitSizeMax")) : void 0,

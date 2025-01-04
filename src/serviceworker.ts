@@ -224,18 +224,20 @@ export class Responser extends EventTarget2 {
 
                 if (request.method === "GET") { // GET request, add body
                     const sourceGen = () => precursors.map((p) => async () => (await this.createResponseFromPrecursor(p, clientId)).body!)
-                    precursors.map((p) => async () => (await this.createResponseFromPrecursor(p, clientId)).body!)
 
                     const url = new URL(request.url)
                     const signal = request.signal
+                    const { start, end } = contentRange
+                    const index = { start, end: end + 1 }
 
                     if (url.searchParams.get("buffer") === "true") { // stream buffer
                         // check cache
-                        let stream = StreamBuffer.get(uurl.id, contentRange, signal)
+                        let stream = StreamBuffer.get(uurl.id, index, signal)
                         if (stream) result.body = stream
                         else {
+                            const sources = sourceGen()
                             // cache
-                            result.body = StreamBuffer.set(uurl.id, contentRange, (signal) => mergeStream(sourceGen(), undefined, { signal }), {
+                            result.body = StreamBuffer.set(uurl.id, index, (signal) => mergeStream(sources, undefined, { signal }), {
                                 signal,
                                 lifespan: url.searchParams.has("lifespan") ? Number(url.searchParams.get("lifespan")) : undefined,
                                 waitSizeMax: url.searchParams.has("waitSizeMax") ? Number(url.searchParams.get("waitSizeMax")) : undefined,
