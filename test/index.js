@@ -13251,6 +13251,170 @@ var _CacheBucket = class _CacheBucket extends EventTarget22 {
 _CacheBucket.buckets = /* @__PURE__ */ new Map();
 var CacheBucket = _CacheBucket;
 
+// src/stream.ts
+var _StreamBuffer = class _StreamBuffer {
+  constructor(key, range, source, option = {}) {
+    this.key = key;
+    this.range = range;
+    this.source = source;
+    this.lifespan = 5e3;
+    this.abortController = new AbortController();
+    this.connections = [];
+    this.buffer = [];
+    this.waitSizeMax = 4 * 1024 * 1024;
+    // last read range start position
+    this.inspected = [];
+    this.inspectDuration = 250;
+    // 250ms
+    this.inspectMaxLength = this.lifespan / this.inspectDuration;
+    if (option.lifespan) this.lifespan = option.lifespan;
+    if (option.waitSizeMax) this.waitSizeMax = option.waitSizeMax;
+    if (option.inspectDuration) this.inspectDuration = option.inspectDuration;
+    this.buffered = { start: range.start, end: range.start };
+    const stream = source(this.abortController.signal);
+    this.init(stream);
+  }
+  static get(key, range, signal) {
+    const buffers = this.storage.get(key);
+    if (buffers) {
+      for (let buffer of buffers) {
+        if (buffer.has(range)) return buffer.read(range, signal);
+      }
+    }
+  }
+  static set(key, range, source, option) {
+    const buffers = this.storage.get(key);
+    const buffer = new this(key, range, source, option);
+    if (buffers) buffers.push(buffer);
+    else this.storage.set(key, [buffer]);
+    console.log(buffers?.length);
+    return buffer.read(range, option?.signal);
+  }
+  // 4MiB
+  get bufferedSize() {
+    return this.buffered.end - this.buffered.start;
+  }
+  init(stream) {
+    const _this = this;
+    stream.pipeTo(new WritableStream({
+      write(chunk) {
+        _this.write(chunk);
+      },
+      close() {
+        _this.close();
+      }
+    }));
+    const interval = setInterval(() => {
+      if (this.abortController.signal.aborted) return clearInterval(interval);
+      this.inspect();
+    }, this.inspectDuration);
+  }
+  inspect() {
+    if (this.connections.length === 0) return;
+    const min = Math.min(...this.connections.map(({ range: { current } }) => current));
+    this.inspected.push(min);
+    if (this.inspected.length === this.inspectMaxLength) {
+      const truncate = this.inspected.shift();
+      if (truncate === void 0) return;
+      const buffer = this.buffer;
+      let position = this.buffered.start;
+      for (let i2 = 0; i2 < buffer.length; i2++) {
+        const next = position + buffer[i2].length;
+        if (truncate < next) {
+          buffer.splice(0, i2);
+          this.buffered.start = position;
+          break;
+        }
+        position = next;
+      }
+    }
+  }
+  has({ start, end }) {
+    return !this.abortController.signal.aborted && this.buffered.start <= start && start <= this.buffered.end + this.waitSizeMax && end <= this.range.end;
+  }
+  write(chunk) {
+    this.buffer.push(chunk);
+    const position = this.buffered.end;
+    this.buffered.end = position + chunk.length;
+    for (let { receiver } of this.connections) {
+      receiver(false, chunk, position);
+    }
+  }
+  close() {
+    for (let { receiver } of this.connections) {
+      receiver(true);
+    }
+  }
+  read(_range, signal) {
+    if (this.abortTimeout) {
+      clearTimeout(this.abortTimeout);
+      this.abortTimeout = void 0;
+    }
+    ;
+    let receiver;
+    let connection;
+    let disconnected = false;
+    const range = { ..._range, current: _range.start };
+    const disconnect = () => {
+      if (disconnected) return;
+      disconnected = true;
+      const index = this.connections.indexOf(connection);
+      if (index > -1) this.connections.splice(this.connections.indexOf(connection), 1);
+      if (this.connections.length === 0) {
+        if (this.abortTimeout) clearTimeout(this.abortTimeout);
+        this.abortTimeout = setTimeout(() => this.expire(), this.lifespan);
+      }
+    };
+    signal?.addEventListener("abort", disconnect);
+    const connect = (controller) => {
+      receiver = (done, chunk, position2) => {
+        const { current, end } = range;
+        if (chunk && position2 !== void 0) {
+          const next = position2 + chunk.length;
+          if (next <= current) return false;
+          if (position2 < current) {
+            chunk = chunk.slice(current - position2);
+            position2 = current;
+          }
+          if (end < next) {
+            chunk = chunk.slice(0, end - position2);
+            controller.enqueue(chunk);
+            controller.close();
+            disconnect();
+            return true;
+          }
+          controller.enqueue(chunk);
+          range.current = next;
+          return false;
+        }
+        if (!done) return false;
+        controller.close();
+        disconnect();
+        return true;
+      };
+      let position = this.buffered.start;
+      for (let chunk of this.buffer) {
+        if (receiver(false, chunk, position)) return;
+        position += chunk.length;
+      }
+      connection = { receiver, range };
+      this.connections.push(connection);
+    };
+    return new ReadableStream({
+      start: connect,
+      cancel: disconnect
+    });
+  }
+  expire() {
+    if (this.connections.length > 0) return;
+    this.abortController.abort("expired");
+    const buffers = _StreamBuffer.storage.get(this.key);
+    if (buffers) buffers.splice(buffers.indexOf(this), 1);
+  }
+};
+_StreamBuffer.storage = /* @__PURE__ */ new Map();
+var StreamBuffer = _StreamBuffer;
+
 // src/serviceworker.ts
 var UNZIP_CACHE_CHUNK_SIZE = 10 * 1024 * 1024;
 var UNZIP_CACHE_NAME = "service-worker-responsify-unzip-cache";

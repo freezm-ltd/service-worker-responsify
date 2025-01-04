@@ -14,7 +14,7 @@ type StreamBufferOption = {
  * Peek and buffering stream
  */
 
-class StreamBuffer {
+export class StreamBuffer {
 	private static storage: Map<string, StreamBuffer[]> = new Map()
 
 	static get(key: string, range: ByteRange, signal?: AbortSignal) {

@@ -7,6 +7,7 @@ import { Entry, ZipEntry } from "@zip.js/zip.js"
 import { getUint16LE, ResponsifiedReader } from "./zip"
 import { base, getDownloadHeader, mergeSignal, randomUUID, structuredClonePolyfill } from "./utils"
 import { CacheBucket } from "./cache"
+import { StreamBuffer } from "./stream"
 
 export type ResponsifiedGenerator = (request: Request, clientId: string) => Responsified | PromiseLike<Responsified>
 
